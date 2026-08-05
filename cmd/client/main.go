@@ -5,9 +5,14 @@ import (
 	"log"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/config"
+	"github.com/amirsober-cloud/sober-tunnel/internal/connection"
+	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
+	"github.com/amirsober-cloud/sober-tunnel/internal/transport"
 )
 
 func main() {
+
+	logger.Init()
 
 	configPath := flag.String(
 		"config",
@@ -21,10 +26,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Role: %s", cfg.Role)
-	log.Printf("Remote: %s:%d", cfg.RemoteHost, cfg.RemotePort)
-	log.Printf("Transport: %s", cfg.Transport)
+
+	logger.Info.Printf("Role: %s", cfg.Role)
+	logger.Info.Printf("Remote: %s:%d", cfg.RemoteHost, cfg.RemotePort)
+	logger.Info.Printf("Transport: %s", cfg.Transport)
+
+	tcp := transport.NewTCP()
+
+	manager := connection.New(tcp)
+
+	manager.Start()
+
+	connection.WaitForShutdown()
+
+	manager.Stop()
 }

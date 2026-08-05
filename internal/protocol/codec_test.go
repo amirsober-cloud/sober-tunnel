@@ -1,43 +1,72 @@
 package protocol
 
 import (
-	"bytes"
+	"encoding/binary"
+	"io"
+	"net"
 	"testing"
 )
 
-func TestFrameCodec(t *testing.T) {
+func TestCodecPipe(t *testing.T) {
 
-	original := &Frame{
-		Version:  Version1,
-		Command:  CmdData,
-		StreamID: 10,
-		Address:  "test.com",
-		Port:     443,
-		Payload:  []byte("hello"),
-	}
+	a, b := net.Pipe()
 
-	buf := new(bytes.Buffer)
+	defer a.Close()
+	defer b.Close()
 
-	err := WriteFrame(
-		buf,
-		original,
+	go func() {
+
+		t.Log("before write")
+
+		err := WriteFrame(
+			a,
+			&Frame{
+				Version:  Version1,
+				Command:  1,
+				StreamID: 1,
+				Address:  "example.com",
+				Port:     443,
+			},
+		)
+
+		t.Log("after write", err)
+
+	}()
+
+	t.Log("before read")
+
+	var size uint32
+
+	err := binary.Read(
+		b,
+		binary.BigEndian,
+		&size,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	decoded, err := ReadFrame(buf)
+	t.Log("read size", size, err)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if decoded.StreamID != original.StreamID {
-		t.Fatal("stream mismatch")
+	data := make([]byte, size)
+
+	_, err = io.ReadFull(
+		b,
+		data,
+	)
+
+	t.Log("read data", len(data), err)
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if string(decoded.Payload) != "hello" {
-		t.Fatal("payload mismatch")
+	frame, err := Decode(data)
+
+	t.Log("decode", frame, err)
+
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -64,15 +64,22 @@ func WriteFrame(
 		return errors.New("frame too large")
 	}
 
-	if err := binary.Write(
-		w,
-		binary.BigEndian,
-		size,
-	); err != nil {
-		return err
-	}
+	packet := make(
+		[]byte,
+		4+len(data),
+	)
 
-	_, err = w.Write(data)
+	binary.BigEndian.PutUint32(
+		packet[:4],
+		size,
+	)
+
+	copy(
+		packet[4:],
+		data,
+	)
+
+	_, err = w.Write(packet)
 
 	return err
 }

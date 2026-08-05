@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 )
 
 const (
@@ -129,7 +130,10 @@ func Decode(data []byte) (*Frame, error) {
 
 	addr := make([]byte, addrLen)
 
-	if _, err := buf.Read(addr); err != nil {
+	if _, err := io.ReadFull(
+		buf,
+		addr,
+	); err != nil {
 		return nil, err
 	}
 
@@ -157,10 +161,23 @@ func Decode(data []byte) (*Frame, error) {
 		return nil, errors.New("payload too large")
 	}
 
-	f.Payload = make([]byte, payloadLen)
+	if payloadLen > 0 {
 
-	if _, err := buf.Read(f.Payload); err != nil {
-		return nil, err
+		f.Payload = make(
+			[]byte,
+			payloadLen,
+		)
+
+		if _, err := io.ReadFull(
+			buf,
+			f.Payload,
+		); err != nil {
+			return nil, err
+		}
+
+	} else {
+
+		f.Payload = nil
 	}
 
 	return f, nil

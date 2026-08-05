@@ -2,8 +2,10 @@ package connection
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/config"
+	"github.com/amirsober-cloud/sober-tunnel/internal/health"
 	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
 	"github.com/amirsober-cloud/sober-tunnel/internal/transport"
 )
@@ -11,12 +13,23 @@ import (
 type Manager struct {
 	transport transport.Transport
 	pool      *Pool
+
+	checker *health.Checker
+	monitor *health.Monitor
 }
 
 func New(t transport.Transport) *Manager {
+
+	checker := health.New()
+
 	return &Manager{
 		transport: t,
 		pool:      NewPool(),
+		checker:   checker,
+		monitor: health.NewMonitor(
+			checker,
+			10*time.Second,
+		),
 	}
 }
 
@@ -28,7 +41,11 @@ func (m *Manager) Start(cfg *config.Config) {
 		cfg.RemotePort,
 	)
 
-	logger.Info.Println("Connection manager started")
+	logger.Info.Println(
+		"Connection manager started",
+	)
+
+	m.monitor.Start()
 
 	for i := 0; i < cfg.MinConnections; i++ {
 
@@ -50,6 +67,8 @@ func (m *Manager) Start(cfg *config.Config) {
 
 		m.pool.Add(conn)
 
+		m.checker.SetConnected(true)
+
 		logger.Info.Println(
 			"Connection established",
 		)
@@ -57,6 +76,16 @@ func (m *Manager) Start(cfg *config.Config) {
 }
 
 func (m *Manager) Stop() error {
-	logger.Info.Println("Connection manager stopped")
+
+	logger.Info.Println(
+		"Connection manager stopped",
+	)
+
+	m.monitor.Stop()
+
+	m.checker.SetConnected(false)
+
+	m.pool.Close()
+
 	return m.transport.Close()
 }

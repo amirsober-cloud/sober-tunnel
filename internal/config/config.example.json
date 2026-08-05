@@ -1,8 +1,10 @@
 {
-  "role": "client",
-  "listen_addr": "0.0.0.0:443",
-  "remote_host": "example.com",
-  "remote_port": 443,
-  "min_connections": 10,
-  "max_connections": 20
+    "role": "client",
+    "listen_addr": "127.0.0.1:1080",
+    "remote_host": "127.0.0.1",
+    "remote_port": 9000,
+    "transport": "tcp",
+    "log_level": "info",
+    "min_connections": 1,
+    "max_connections": 5
 }

@@ -1,21 +1,28 @@
 package main
 
 import (
-	"github.com/amirsober-cloud/sober-tunnel/internal/health"
-	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
+	"flag"
+	"log"
+
+	"github.com/amirsober-cloud/sober-tunnel/internal/config"
 )
 
 func main() {
 
-	logger.Init()
+	configPath := flag.String(
+		"config",
+		"configs/client.json",
+		"config file",
+	)
 
-	checker := health.New()
+	flag.Parse()
 
-	checker.SetConnected(true)
-
-	logger.Info.Println("Sober Tunnel started")
-
-	if checker.Connected() {
-		logger.Info.Println("Tunnel status: CONNECTED")
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	log.Printf("Role: %s", cfg.Role)
+	log.Printf("Remote: %s:%d", cfg.RemoteHost, cfg.RemotePort)
+	log.Printf("Transport: %s", cfg.Transport)
 }

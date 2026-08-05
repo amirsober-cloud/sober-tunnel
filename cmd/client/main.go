@@ -21,7 +21,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	if err := cfg.Validate(); err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Role: %s", cfg.Role)
 	log.Printf("Remote: %s:%d", cfg.RemoteHost, cfg.RemotePort)
 	log.Printf("Transport: %s", cfg.Transport)

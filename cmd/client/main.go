@@ -39,7 +39,7 @@ func main() {
 
 	manager := connection.New(tcp)
 
-	manager.Start()
+	manager.Start(cfg)
 
 	connection.WaitForShutdown()
 

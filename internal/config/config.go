@@ -1,8 +1,11 @@
 package config
 
 type Config struct {
-	Role       string `json:"role"`
+	Role string `json:"role"`
+
 	ListenAddr string `json:"listen_addr"`
+	ListenPort int    `json:"listen_port"`
+
 	RemoteHost string `json:"remote_host"`
 	RemotePort int    `json:"remote_port"`
 

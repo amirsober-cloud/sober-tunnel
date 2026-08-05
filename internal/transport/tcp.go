@@ -1,6 +1,9 @@
 package transport
 
-import "net"
+import (
+	"net"
+	"time"
+)
 
 type TCPTransport struct {
 	conn net.Conn
@@ -12,7 +15,12 @@ func NewTCP() *TCPTransport {
 
 func (t *TCPTransport) Connect(address string) (net.Conn, error) {
 
-	conn, err := net.Dial("tcp", address)
+	dialer := net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	conn, err := dialer.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}

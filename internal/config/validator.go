@@ -7,20 +7,30 @@ import (
 
 func (c *Config) Validate() error {
 
-	if c.Role != "client" && c.Role != "server" {
+	switch c.Role {
+
+	case "client":
+
+		if c.RemoteHost == "" {
+			return errors.New("remote_host is required")
+		}
+
+		if c.RemotePort < 1 || c.RemotePort > 65535 {
+			return fmt.Errorf("invalid remote_port: %d", c.RemotePort)
+		}
+
+	case "server":
+
+		if c.ListenAddr == "" {
+			return errors.New("listen_addr is required")
+		}
+
+		if c.ListenPort < 1 || c.ListenPort > 65535 {
+			return fmt.Errorf("invalid listen_port: %d", c.ListenPort)
+		}
+
+	default:
 		return errors.New("invalid role")
-	}
-
-	if c.ListenAddr == "" {
-		return errors.New("listen_addr is required")
-	}
-
-	if c.RemoteHost == "" {
-		return errors.New("remote_host is required")
-	}
-
-	if c.RemotePort < 1 || c.RemotePort > 65535 {
-		return fmt.Errorf("invalid remote_port: %d", c.RemotePort)
 	}
 
 	switch c.Transport {

@@ -1,0 +1,9 @@
+{
+  "role": "server",
+  "listen_addr": "0.0.0.0",
+  "listen_port": 9000,
+  "transport": "tcp",
+  "log_level": "info",
+  "min_connections": 1,
+  "max_connections": 5
+}

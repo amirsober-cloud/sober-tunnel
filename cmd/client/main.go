@@ -1,10 +1,21 @@
 package main
 
-import "github.com/amirsober-cloud/sober-tunnel/internal/logger"
+import (
+	"github.com/amirsober-cloud/sober-tunnel/internal/health"
+	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
+)
 
 func main() {
+
 	logger.Init()
 
+	checker := health.New()
+
+	checker.SetConnected(true)
+
 	logger.Info.Println("Sober Tunnel started")
-	logger.Error.Println("Logger test error")
+
+	if checker.Connected() {
+		logger.Info.Println("Tunnel status: CONNECTED")
+	}
 }

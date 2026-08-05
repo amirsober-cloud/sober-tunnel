@@ -1,0 +1,8 @@
+{
+  "role": "client",
+  "listen_addr": "0.0.0.0:443",
+  "remote_host": "example.com",
+  "remote_port": 443,
+  "min_connections": 10,
+  "max_connections": 20
+}

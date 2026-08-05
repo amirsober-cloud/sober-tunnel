@@ -1,7 +1,10 @@
 package main
 
-import "fmt"
+import "github.com/amirsober-cloud/sober-tunnel/internal/logger"
 
 func main() {
-	fmt.Println("Hello, Sober Tunnel!")
+	logger.Init()
+
+	logger.Info.Println("Sober Tunnel started")
+	logger.Error.Println("Logger test error")
 }

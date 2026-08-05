@@ -6,7 +6,6 @@ import (
 )
 
 type TCPTransport struct {
-	conn net.Conn
 }
 
 func NewTCP() *TCPTransport {
@@ -20,23 +19,20 @@ func (t *TCPTransport) Connect(address string) (net.Conn, error) {
 		KeepAlive: 30 * time.Second,
 	}
 
-	conn, err := dialer.Dial("tcp", address)
+	conn, err := dialer.Dial(
+		"tcp",
+		address,
+	)
+
 	if err != nil {
 		return nil, err
 	}
-
-	t.conn = conn
 
 	return conn, nil
 }
 
 func (t *TCPTransport) Close() error {
-
-	if t.conn == nil {
-		return nil
-	}
-
-	return t.conn.Close()
+	return nil
 }
 
 func (t *TCPTransport) Name() string {

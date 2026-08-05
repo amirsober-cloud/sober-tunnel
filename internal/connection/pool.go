@@ -8,10 +8,45 @@ import (
 )
 
 type Pool struct {
-	mu    sync.Mutex
+	mu sync.Mutex
+
 	conns []net.Conn
+
+	sessions []*Session
 }
 
+func (p *Pool) AddSession(s *Session) {
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.sessions = append(p.sessions, s)
+}
+
+func (p *Pool) Sessions() []*Session {
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	out := make([]*Session, len(p.sessions))
+	copy(out, p.sessions)
+
+	return out
+}
+
+func (p *Pool) FreeSession() *Session {
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, s := range p.sessions {
+		if s.CanOpenStream() {
+			return s
+		}
+	}
+
+	return nil
+}
 func NewPool() *Pool {
 	return &Pool{
 		conns: make([]net.Conn, 0),

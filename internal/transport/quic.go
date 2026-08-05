@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/config"
@@ -11,8 +12,11 @@ import (
 )
 
 type QUICTransport struct {
-	cfg      config.QUICConfig
+	cfg config.QUICConfig
+
 	listener *quic.Listener
+
+	mu sync.Mutex
 }
 
 func NewQUIC(cfg config.QUICConfig) *QUICTransport {
@@ -109,15 +113,15 @@ func (q *QUICTransport) config() *quic.Config {
 
 func (q *QUICTransport) Close() error {
 
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	if q.listener != nil {
-
 		return q.listener.Close()
-
 	}
 
 	return nil
 }
-
 func (q *QUICTransport) Name() string {
 
 	return "quic"

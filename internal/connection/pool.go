@@ -42,6 +42,50 @@ func (p *Pool) Size() int {
 	return len(p.conns)
 }
 
+func (p *Pool) Remove(conn net.Conn) {
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for i, c := range p.conns {
+
+		if c == conn {
+
+			conn.Close()
+
+			p.conns = append(
+				p.conns[:i],
+				p.conns[i+1:]...,
+			)
+
+			logger.Info.Printf(
+				"Connection removed. Total: %d",
+				len(p.conns),
+			)
+
+			return
+		}
+	}
+}
+
+func (p *Pool) Connections() []net.Conn {
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	result := make(
+		[]net.Conn,
+		len(p.conns),
+	)
+
+	copy(
+		result,
+		p.conns,
+	)
+
+	return result
+}
+
 func (p *Pool) Close() {
 
 	p.mu.Lock()

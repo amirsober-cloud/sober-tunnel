@@ -16,6 +16,8 @@ type Manager struct {
 
 	checker *health.Checker
 	monitor *health.Monitor
+
+	stop chan struct{}
 }
 
 func New(t transport.Transport) *Manager {
@@ -30,6 +32,7 @@ func New(t transport.Transport) *Manager {
 			checker,
 			10*time.Second,
 		),
+		stop: make(chan struct{}),
 	}
 }
 
@@ -47,31 +50,87 @@ func (m *Manager) Start(cfg *config.Config) {
 
 	m.monitor.Start()
 
+	// ایجاد اتصال اولیه
 	for i := 0; i < cfg.MinConnections; i++ {
+		m.createConnection(address)
+	}
 
-		logger.Info.Printf(
-			"Creating connection %d/%d",
-			i+1,
-			cfg.MinConnections,
+	// شروع نگهداری Pool
+	go m.maintain(cfg, address)
+}
+
+func (m *Manager) createConnection(address string) {
+
+	conn, err := m.transport.Connect(address)
+
+	if err != nil {
+		logger.Error.Printf(
+			"Connection failed: %v",
+			err,
 		)
+		return
+	}
 
-		conn, err := m.transport.Connect(address)
+	m.pool.Add(conn)
 
-		if err != nil {
-			logger.Error.Printf(
-				"Connection failed: %v",
-				err,
+	m.checker.SetConnected(true)
+
+	logger.Info.Println(
+		"Connection established",
+	)
+}
+
+func (m *Manager) maintain(
+	cfg *config.Config,
+	address string,
+) {
+
+	ticker := time.NewTicker(
+		5 * time.Second,
+	)
+
+	defer ticker.Stop()
+
+	logger.Info.Println(
+		"Connection maintenance started",
+	)
+
+	for {
+
+		select {
+
+		case <-ticker.C:
+
+			current := m.pool.Size()
+
+			logger.Info.Printf(
+				"Pool status: %d/%d",
+				current,
+				cfg.MinConnections,
 			)
-			continue
+
+			if current < cfg.MinConnections {
+
+				needed := cfg.MinConnections - current
+
+				logger.Info.Printf(
+					"Need %d more connections",
+					needed,
+				)
+
+				for i := 0; i < needed; i++ {
+					m.createConnection(address)
+				}
+			}
+
+		case <-m.stop:
+
+			logger.Info.Println(
+				"Connection maintenance stopped",
+			)
+
+			return
 		}
-
-		m.pool.Add(conn)
-
-		m.checker.SetConnected(true)
-
-		logger.Info.Println(
-			"Connection established",
-		)
 	}
 }
 
@@ -80,6 +139,8 @@ func (m *Manager) Stop() error {
 	logger.Info.Println(
 		"Connection manager stopped",
 	)
+
+	close(m.stop)
 
 	m.monitor.Stop()
 

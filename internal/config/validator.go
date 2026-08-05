@@ -28,16 +28,37 @@ func (c *Config) Validate() error {
 		if c.ListenPort < 1 || c.ListenPort > 65535 {
 			return fmt.Errorf("invalid listen_port: %d", c.ListenPort)
 		}
+		if c.TargetHost == "" {
+			return errors.New("target_host is required")
+		}
+
+		if c.TargetPort < 1 || c.TargetPort > 65535 {
+			return fmt.Errorf(
+				"invalid target_port: %d",
+				c.TargetPort,
+			)
+		}
 
 	default:
 		return errors.New("invalid role")
 	}
 
 	switch c.Transport {
+
 	case "tcp":
 		// OK
+
+	case "kcp":
+		// OK
+
+	case "quic":
+		// OK (برای مرحله بعد)
+
 	default:
-		return fmt.Errorf("unsupported transport: %s", c.Transport)
+		return fmt.Errorf(
+			"unsupported transport: %s",
+			c.Transport,
+		)
 	}
 
 	if c.MinConnections < 1 {

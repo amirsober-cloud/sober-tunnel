@@ -2,8 +2,11 @@
   "role": "server",
   "listen_addr": "0.0.0.0",
   "listen_port": 9000,
-  "transport": "tcp",
-  "log_level": "info",
-  "min_connections": 1,
+  "transport": "quic",
+
+  "target_host": "127.0.0.1",
+  "target_port": 8080,
+
+  "min_connections": 3,
   "max_connections": 5
 }

@@ -16,6 +16,10 @@ type Manager struct {
 
 	checker *health.Checker
 	monitor *health.Monitor
+	watcher *Watcher
+
+	backoff   *Backoff
+	lastScale time.Time
 
 	stop chan struct{}
 }
@@ -24,14 +28,27 @@ func New(t transport.Transport) *Manager {
 
 	checker := health.New()
 
+	pool := NewPool()
+
 	return &Manager{
 		transport: t,
-		pool:      NewPool(),
+		pool:      pool,
 		checker:   checker,
+
 		monitor: health.NewMonitor(
 			checker,
 			10*time.Second,
 		),
+
+		watcher: NewWatcher(
+			pool,
+			5*time.Second,
+		),
+
+		backoff: NewBackoff(),
+
+		lastScale: time.Now(),
+
 		stop: make(chan struct{}),
 	}
 }
@@ -50,12 +67,12 @@ func (m *Manager) Start(cfg *config.Config) {
 
 	m.monitor.Start()
 
-	// ایجاد اتصال اولیه
+	m.watcher.Start()
+
 	for i := 0; i < cfg.MinConnections; i++ {
 		m.createConnection(address)
 	}
 
-	// شروع نگهداری Pool
 	go m.maintain(cfg, address)
 }
 
@@ -73,10 +90,13 @@ func (m *Manager) createConnection(address string) {
 
 	m.pool.Add(conn)
 
+	m.backoff.Reset()
+
 	m.checker.SetConnected(true)
 
-	logger.Info.Println(
-		"Connection established",
+	logger.Info.Printf(
+		"Connection established. Pool: %d",
+		m.pool.Size(),
 	)
 }
 
@@ -106,20 +126,60 @@ func (m *Manager) maintain(
 			logger.Info.Printf(
 				"Pool status: %d/%d",
 				current,
-				cfg.MinConnections,
+				cfg.MaxConnections,
 			)
 
+			// اگر بیشتر از سقف شد کم کن
+			if current > cfg.MaxConnections {
+
+				excess := current - cfg.MaxConnections
+
+				logger.Info.Printf(
+					"Scaling down. Removing %d connections",
+					excess,
+				)
+
+				for i := 0; i < excess; i++ {
+					m.pool.RemoveLast()
+				}
+
+				continue
+			}
+
+			// اگر کمتر از حداقل شد جبران کن
 			if current < cfg.MinConnections {
 
 				needed := cfg.MinConnections - current
 
 				logger.Info.Printf(
-					"Need %d more connections",
+					"Minimum pool refill: %d connections",
 					needed,
 				)
 
 				for i := 0; i < needed; i++ {
 					m.createConnection(address)
+				}
+
+				continue
+			}
+
+			// Auto scale تا سقف
+			if current < cfg.MaxConnections {
+
+				if time.Since(m.lastScale) > 30*time.Second {
+
+					add := 1
+
+					logger.Info.Printf(
+						"Auto scaling up +%d connection",
+						add,
+					)
+
+					for i := 0; i < add; i++ {
+						m.createConnection(address)
+					}
+
+					m.lastScale = time.Now()
 				}
 			}
 
@@ -141,6 +201,8 @@ func (m *Manager) Stop() error {
 	)
 
 	close(m.stop)
+
+	m.watcher.Stop()
 
 	m.monitor.Stop()
 

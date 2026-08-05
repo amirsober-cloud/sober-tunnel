@@ -67,7 +67,28 @@ func (p *Pool) Remove(conn net.Conn) {
 		}
 	}
 }
+func (p *Pool) RemoveLast() {
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	size := len(p.conns)
+
+	if size == 0 {
+		return
+	}
+
+	conn := p.conns[size-1]
+
+	conn.Close()
+
+	p.conns = p.conns[:size-1]
+
+	logger.Info.Printf(
+		"Connection removed. Total: %d",
+		len(p.conns),
+	)
+}
 func (p *Pool) Connections() []net.Conn {
 
 	p.mu.Lock()

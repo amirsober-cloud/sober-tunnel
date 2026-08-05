@@ -23,6 +23,7 @@ func main() {
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,13 +32,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logger.Info.Printf("Role: %s", cfg.Role)
-	logger.Info.Printf("Remote: %s:%d", cfg.RemoteHost, cfg.RemotePort)
-	logger.Info.Printf("Transport: %s", cfg.Transport)
+	logger.Info.Printf(
+		"Role: %s",
+		cfg.Role,
+	)
 
-	tcp := transport.NewTCP()
+	logger.Info.Printf(
+		"Remote: %s:%d",
+		cfg.RemoteHost,
+		cfg.RemotePort,
+	)
 
-	manager := connection.New(tcp)
+	logger.Info.Printf(
+		"Transport: %s",
+		cfg.Transport,
+	)
+
+	t, err := transport.NewTransport(
+		cfg.Transport,
+		cfg.KCP,
+		cfg.QUIC,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	manager := connection.New(t)
 
 	manager.Start(cfg)
 

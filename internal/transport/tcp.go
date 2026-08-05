@@ -30,6 +30,13 @@ func (t *TCPTransport) Connect(address string) (net.Conn, error) {
 
 	return conn, nil
 }
+func (t *TCPTransport) Listen(address string) (net.Listener, error) {
+
+	return net.Listen(
+		"tcp",
+		address,
+	)
+}
 
 func (t *TCPTransport) Close() error {
 	return nil

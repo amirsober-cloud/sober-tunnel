@@ -105,6 +105,9 @@ validation/systemd. They do not establish that systemd works on Windows.
 - The public one-line installer completed in a fresh Ubuntu 24.04 container,
   cloning anonymously, installing missing prerequisites and verified Go,
   building v0.1.3, and writing both units and a mode-0600 HTTPS configuration.
+  The same fresh installation check passed again for v0.1.5, including both
+  executables. The experimental VPS now runs both v0.1.5 binaries and passed
+  authenticated HTTPS/API/asset checks against the tested build checksums.
   That container used a systemctl stub; actual service startup was checked
   separately on the experimental VPS.
 - The installed panel passed HTTPS login, admin-only camouflage API checks,

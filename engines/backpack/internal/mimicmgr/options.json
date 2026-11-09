@@ -1,0 +1,955 @@
+{
+    "edit-foreign":  [
+                         {
+                             "name":  "persona",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "server persona: auto|cpanel|directadmin|devops (re-resolves the mimic set)"
+                         },
+                         {
+                             "name":  "mimics",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "explicit camouflage set (overrides --persona): comma list or \u0027all\u0027"
+                         },
+                         {
+                             "name":  "listen-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "SSH mimic public port"
+                         },
+                         {
+                             "name":  "tls-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "TLS mimic public port"
+                         },
+                         {
+                             "name":  "smtp-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "SMTP (STARTTLS) mimic public port"
+                         },
+                         {
+                             "name":  "imap-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "IMAP (STARTTLS) mimic public port"
+                         },
+                         {
+                             "name":  "smtps-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "SMTPS mimic public port"
+                         },
+                         {
+                             "name":  "imaps-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "IMAPS mimic public port"
+                         },
+                         {
+                             "name":  "directadmin-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "DirectAdmin panel mimic port"
+                         },
+                         {
+                             "name":  "decoy-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "local decoy sshd port"
+                         },
+                         {
+                             "name":  "tls-servername",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "TLS SNI/CN"
+                         },
+                         {
+                             "name":  "domain",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "real domain for a Let\u0027s Encrypt cert (\u0027\u0027 = self-signed)"
+                         },
+                         {
+                             "name":  "acme-email",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "Let\u0027s Encrypt account email"
+                         },
+                         {
+                             "name":  "decoy-style",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "camouflage persona: apache|directadmin"
+                         },
+                         {
+                             "name":  "egress-mode",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "egress family: ipv4|ipv6|dual"
+                         },
+                         {
+                             "name":  "egress-bind-ip",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "egress source IP"
+                         },
+                         {
+                             "name":  "http-decoy-port",
+                             "type":  "int",
+                             "default":  "",
+                             "help":  "plaintext web decoy port (0 disables)"
+                         },
+                         {
+                             "name":  "token",
+                             "type":  "string",
+                             "default":  "",
+                             "help":  "set a specific new auth token (default: keep current)"
+                         },
+                         {
+                             "name":  "rotate-token",
+                             "type":  "bool",
+                             "default":  "false",
+                             "help":  "generate a fresh auth token"
+                         }
+                     ],
+    "edit-node":  [
+                      {
+                          "name":  "alias",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "node alias to edit (required)"
+                      },
+                      {
+                          "name":  "target-ip",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "foreign egress IP"
+                      },
+                      {
+                          "name":  "mimics",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "endpoints (comma list or \u0027all\u0027)"
+                      },
+                      {
+                          "name":  "ssh-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign SSH mimic port"
+                      },
+                      {
+                          "name":  "tls-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign TLS mimic port"
+                      },
+                      {
+                          "name":  "smtp-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign SMTP mimic port"
+                      },
+                      {
+                          "name":  "imap-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign IMAP mimic port"
+                      },
+                      {
+                          "name":  "smtps-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign SMTPS mimic port"
+                      },
+                      {
+                          "name":  "imaps-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign IMAPS mimic port"
+                      },
+                      {
+                          "name":  "directadmin-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "foreign DirectAdmin mimic port"
+                      },
+                      {
+                          "name":  "tls-servername",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "TLS SNI (the foreign\u0027s domain, for a real cert)"
+                      },
+                      {
+                          "name":  "socks-port",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "local SOCKS5 bind port"
+                      },
+                      {
+                          "name":  "socks-bind",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "SOCKS5 bind address (container veth IP / 0.0.0.0 for LAN clients; trusted networks only)"
+                      },
+                      {
+                          "name":  "min",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "min warm-up connections"
+                      },
+                      {
+                          "name":  "max",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "max connections"
+                      },
+                      {
+                          "name":  "bw",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "per-connection Mbps cap"
+                      },
+                      {
+                          "name":  "jitter",
+                          "type":  "int",
+                          "default":  "",
+                          "help":  "bandwidth jitter Mbps"
+                      },
+                      {
+                          "name":  "token",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "set a specific new auth token (default: keep current)"
+                      },
+                      {
+                          "name":  "rotate-token",
+                          "type":  "bool",
+                          "default":  "false",
+                          "help":  "generate a fresh auth token"
+                      },
+                      {
+                          "name":  "tun",
+                          "type":  "bool",
+                          "default":  "",
+                          "help":  "expose this node as a TUN interface (opt-in)"
+                      },
+                      {
+                          "name":  "tun-name",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "TUN interface name (default: keep/auto)"
+                      },
+                      {
+                          "name":  "tun-addr",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "TUN gateway CIDR (default: keep/auto)"
+                      },
+                      {
+                          "name":  "dns",
+                          "type":  "bool",
+                          "default":  "",
+                          "help":  "run a :53 DNS forwarder on the TUN gateway IP (requires --tun)"
+                      },
+                      {
+                          "name":  "gateway",
+                          "type":  "bool",
+                          "default":  "",
+                          "help":  "transparent L3 gateway: forward transit traffic on the LAN iface into the tunnel (implies --tun)"
+                      },
+                      {
+                          "name":  "gateway-iface",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "LAN-facing interface to forward from (default: auto)"
+                      },
+                      {
+                          "name":  "gateway-lan",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  ","
+                      }
+                  ],
+    "pairing":  [
+                    {
+                        "name":  "public-ip",
+                        "type":  "string",
+                        "default":  "",
+                        "help":  "public exit IP embedded in the pairing token (auto-detected if empty)"
+                    }
+                ],
+    "probe":  [
+                  {
+                      "name":  "node",
+                      "type":  "string",
+                      "default":  "",
+                      "help":  "node alias (default: all nodes)"
+                  }
+              ],
+    "setup-foreign":  [
+                          {
+                              "name":  "listen-port",
+                              "type":  "int",
+                              "default":  "22",
+                              "help":  "SSH mimic public port"
+                          },
+                          {
+                              "name":  "decoy-port",
+                              "type":  "int",
+                              "default":  "2022",
+                              "help":  "local decoy sshd port"
+                          },
+                          {
+                              "name":  "tls-port",
+                              "type":  "int",
+                              "default":  "443",
+                              "help":  "TLS mimic public port"
+                          },
+                          {
+                              "name":  "smtp-port",
+                              "type":  "int",
+                              "default":  "587",
+                              "help":  "SMTP (STARTTLS) mimic public port"
+                          },
+                          {
+                              "name":  "imap-port",
+                              "type":  "int",
+                              "default":  "143",
+                              "help":  "IMAP (STARTTLS) mimic public port"
+                          },
+                          {
+                              "name":  "smtps-port",
+                              "type":  "int",
+                              "default":  "465",
+                              "help":  "SMTPS (implicit TLS) mimic public port"
+                          },
+                          {
+                              "name":  "imaps-port",
+                              "type":  "int",
+                              "default":  "993",
+                              "help":  "IMAPS (implicit TLS) mimic public port"
+                          },
+                          {
+                              "name":  "directadmin-port",
+                              "type":  "int",
+                              "default":  "2222",
+                              "help":  "DirectAdmin panel mimic port"
+                          },
+                          {
+                              "name":  "https-alt-port",
+                              "type":  "int",
+                              "default":  "8443",
+                              "help":  "alt-HTTPS (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "docker-port",
+                              "type":  "int",
+                              "default":  "5000",
+                              "help":  "Docker Registry (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "grafana-port",
+                              "type":  "int",
+                              "default":  "3000",
+                              "help":  "Grafana (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "prometheus-port",
+                              "type":  "int",
+                              "default":  "9090",
+                              "help":  "Prometheus (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "cpanel-port",
+                              "type":  "int",
+                              "default":  "2083",
+                              "help":  "cPanel (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "whm-port",
+                              "type":  "int",
+                              "default":  "2087",
+                              "help":  "WHM (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "webmail-port",
+                              "type":  "int",
+                              "default":  "2096",
+                              "help":  "Webmail (implicit TLS) mimic port"
+                          },
+                          {
+                              "name":  "postgres-port",
+                              "type":  "int",
+                              "default":  "5432",
+                              "help":  "PostgreSQL (STARTTLS) mimic port"
+                          },
+                          {
+                              "name":  "mysql-port",
+                              "type":  "int",
+                              "default":  "3306",
+                              "help":  "MySQL/MariaDB (STARTTLS) mimic port"
+                          },
+                          {
+                              "name":  "tls-servername",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "TLS SNI/CN (optional)"
+                          },
+                          {
+                              "name":  "persona",
+                              "type":  "string",
+                              "default":  "auto",
+                              "help":  "server persona: auto|cpanel|directadmin|devops (picks a coherent SSH+9 mimic set)"
+                          },
+                          {
+                              "name":  "mimics",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "explicit camouflage set (overrides --persona): comma list or \u0027all\u0027"
+                          },
+                          {
+                              "name":  "domain",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "real domain for a Let\u0027s Encrypt cert (recommended; empty = self-signed)"
+                          },
+                          {
+                              "name":  "acme-email",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "Let\u0027s Encrypt account email (optional)"
+                          },
+                          {
+                              "name":  "decoy-style",
+                              "type":  "string",
+                              "default":  "apache",
+                              "help":  "camouflage persona: apache|directadmin"
+                          },
+                          {
+                              "name":  "egress-mode",
+                              "type":  "string",
+                              "default":  "ipv4",
+                              "help":  "egress family: ipv4|ipv6|dual"
+                          },
+                          {
+                              "name":  "egress-bind-ip",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "optional egress source IP"
+                          },
+                          {
+                              "name":  "http-decoy-port",
+                              "type":  "int",
+                              "default":  "80",
+                              "help":  "plaintext web decoy port (0 to disable)"
+                          },
+                          {
+                              "name":  "token",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "auth token (generated if empty)"
+                          },
+                          {
+                              "name":  "public-ip",
+                              "type":  "string",
+                              "default":  "",
+                              "help":  "public IP to embed in the pairing token (auto-detected if empty)"
+                          }
+                      ],
+    "add-node":  [
+                     {
+                         "name":  "alias",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "node alias"
+                     },
+                     {
+                         "name":  "target-ip",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "foreign IP (with --mimics)"
+                     },
+                     {
+                         "name":  "target",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "single foreign HOST:PORT (legacy, SSH)"
+                     },
+                     {
+                         "name":  "persona",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "match the foreign\u0027s persona: auto|cpanel|directadmin|devops (derives the endpoint set from the token; needs --target-ip)"
+                     },
+                     {
+                         "name":  "mimics",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "explicit endpoint set (overrides --persona): comma list or \u0027all\u0027 (needs --target-ip)"
+                     },
+                     {
+                         "name":  "ssh-port",
+                         "type":  "int",
+                         "default":  "22",
+                         "help":  "foreign SSH mimic port"
+                     },
+                     {
+                         "name":  "tls-port",
+                         "type":  "int",
+                         "default":  "443",
+                         "help":  "foreign TLS mimic port"
+                     },
+                     {
+                         "name":  "smtp-port",
+                         "type":  "int",
+                         "default":  "587",
+                         "help":  "foreign SMTP (STARTTLS) mimic port"
+                     },
+                     {
+                         "name":  "imap-port",
+                         "type":  "int",
+                         "default":  "143",
+                         "help":  "foreign IMAP (STARTTLS) mimic port"
+                     },
+                     {
+                         "name":  "smtps-port",
+                         "type":  "int",
+                         "default":  "465",
+                         "help":  "foreign SMTPS (implicit TLS) mimic port"
+                     },
+                     {
+                         "name":  "imaps-port",
+                         "type":  "int",
+                         "default":  "993",
+                         "help":  "foreign IMAPS (implicit TLS) mimic port"
+                     },
+                     {
+                         "name":  "directadmin-port",
+                         "type":  "int",
+                         "default":  "2222",
+                         "help":  "foreign DirectAdmin panel mimic port"
+                     },
+                     {
+                         "name":  "https-alt-port",
+                         "type":  "int",
+                         "default":  "8443",
+                         "help":  "foreign alt-HTTPS mimic port"
+                     },
+                     {
+                         "name":  "docker-port",
+                         "type":  "int",
+                         "default":  "5000",
+                         "help":  "foreign Docker Registry mimic port"
+                     },
+                     {
+                         "name":  "grafana-port",
+                         "type":  "int",
+                         "default":  "3000",
+                         "help":  "foreign Grafana mimic port"
+                     },
+                     {
+                         "name":  "prometheus-port",
+                         "type":  "int",
+                         "default":  "9090",
+                         "help":  "foreign Prometheus mimic port"
+                     },
+                     {
+                         "name":  "cpanel-port",
+                         "type":  "int",
+                         "default":  "2083",
+                         "help":  "foreign cPanel mimic port"
+                     },
+                     {
+                         "name":  "whm-port",
+                         "type":  "int",
+                         "default":  "2087",
+                         "help":  "foreign WHM mimic port"
+                     },
+                     {
+                         "name":  "webmail-port",
+                         "type":  "int",
+                         "default":  "2096",
+                         "help":  "foreign Webmail mimic port"
+                     },
+                     {
+                         "name":  "postgres-port",
+                         "type":  "int",
+                         "default":  "5432",
+                         "help":  "foreign PostgreSQL (STARTTLS) mimic port"
+                     },
+                     {
+                         "name":  "mysql-port",
+                         "type":  "int",
+                         "default":  "3306",
+                         "help":  "foreign MySQL (STARTTLS) mimic port"
+                     },
+                     {
+                         "name":  "tls-servername",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "TLS SNI (set to the foreign\u0027s domain for a real cert)"
+                     },
+                     {
+                         "name":  "socks-port",
+                         "type":  "int",
+                         "default":  "0",
+                         "help":  "local SOCKS5 bind port"
+                     },
+                     {
+                         "name":  "socks-bind",
+                         "type":  "string",
+                         "default":  "127.0.0.1",
+                         "help":  "SOCKS5 bind address (use the container veth IP or 0.0.0.0 for LAN/router clients; only on a trusted network)"
+                     },
+                     {
+                         "name":  "token",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "auth token from the foreign node"
+                     },
+                     {
+                         "name":  "profile",
+                         "type":  "string",
+                         "default":  "balanced",
+                         "help":  "throughput profile: balanced|high-speed"
+                     },
+                     {
+                         "name":  "min",
+                         "type":  "int",
+                         "default":  "0",
+                         "help":  "min warm-up connections (0 = profile)"
+                     },
+                     {
+                         "name":  "max",
+                         "type":  "int",
+                         "default":  "0",
+                         "help":  "max connections (0 = profile)"
+                     },
+                     {
+                         "name":  "bw",
+                         "type":  "int",
+                         "default":  "0",
+                         "help":  "per-connection Mbps cap (0 = profile)"
+                     },
+                     {
+                         "name":  "jitter",
+                         "type":  "int",
+                         "default":  "-1",
+                         "help":  "bandwidth jitter Mbps (-1 = profile)"
+                     },
+                     {
+                         "name":  "tun",
+                         "type":  "bool",
+                         "default":  "false",
+                         "help":  "also expose this node as a TUN network interface (opt-in)"
+                     },
+                     {
+                         "name":  "tun-name",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "TUN interface name (default: auto, e.g. hedioum0)"
+                     },
+                     {
+                         "name":  "tun-addr",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "TUN gateway CIDR (default: auto, e.g. 10.200.0.1/24)"
+                     },
+                     {
+                         "name":  "dns",
+                         "type":  "bool",
+                         "default":  "false",
+                         "help":  "run a :53 DNS forwarder on the TUN gateway IP (requires --tun)"
+                     },
+                     {
+                         "name":  "gateway",
+                         "type":  "bool",
+                         "default":  "false",
+                         "help":  "transparent L3 gateway: forward transit traffic on the LAN iface into the tunnel (implies --tun; for MikroTik/router use)"
+                     },
+                     {
+                         "name":  "gateway-iface",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "LAN-facing interface to forward from (default: auto, e.g. eth0)"
+                     },
+                     {
+                         "name":  "gateway-lan",
+                         "type":  "string",
+                         "default":  "",
+                         "help":  "optional comma-list of LAN subnets to scope forwarding (default: all transit)"
+                     }
+                 ],
+    "remove-node":  [
+                        {
+                            "name":  "alias",
+                            "type":  "string",
+                            "default":  "",
+                            "help":  "node alias to remove"
+                        }
+                    ],
+    "speedtest":  [
+                      {
+                          "name":  "node",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "node alias (default: first)"
+                      },
+                      {
+                          "name":  "mimic",
+                          "type":  "string",
+                          "default":  "",
+                          "help":  "endpoint mimic to test (default: first)"
+                      },
+                      {
+                          "name":  "seconds",
+                          "type":  "int",
+                          "default":  "10",
+                          "help":  "test duration per direction"
+                      },
+                      {
+                          "name":  "dir",
+                          "type":  "string",
+                          "default":  "both",
+                          "help":  "down|up|both"
+                      }
+                  ],
+    "test":  [
+                 {
+                     "name":  "node",
+                     "type":  "string",
+                     "default":  "",
+                     "help":  "node alias to test (default: all nodes)"
+                 }
+             ],
+    "setup-iran":  [
+                       {
+                           "name":  "alias",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "node alias"
+                       },
+                       {
+                           "name":  "target-ip",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "foreign IP (with --mimics)"
+                       },
+                       {
+                           "name":  "target",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "single foreign HOST:PORT (legacy, SSH)"
+                       },
+                       {
+                           "name":  "persona",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "match the foreign\u0027s persona: auto|cpanel|directadmin|devops (derives the endpoint set from the token; needs --target-ip)"
+                       },
+                       {
+                           "name":  "mimics",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "explicit endpoint set (overrides --persona): comma list or \u0027all\u0027 (needs --target-ip)"
+                       },
+                       {
+                           "name":  "ssh-port",
+                           "type":  "int",
+                           "default":  "22",
+                           "help":  "foreign SSH mimic port"
+                       },
+                       {
+                           "name":  "tls-port",
+                           "type":  "int",
+                           "default":  "443",
+                           "help":  "foreign TLS mimic port"
+                       },
+                       {
+                           "name":  "smtp-port",
+                           "type":  "int",
+                           "default":  "587",
+                           "help":  "foreign SMTP (STARTTLS) mimic port"
+                       },
+                       {
+                           "name":  "imap-port",
+                           "type":  "int",
+                           "default":  "143",
+                           "help":  "foreign IMAP (STARTTLS) mimic port"
+                       },
+                       {
+                           "name":  "smtps-port",
+                           "type":  "int",
+                           "default":  "465",
+                           "help":  "foreign SMTPS (implicit TLS) mimic port"
+                       },
+                       {
+                           "name":  "imaps-port",
+                           "type":  "int",
+                           "default":  "993",
+                           "help":  "foreign IMAPS (implicit TLS) mimic port"
+                       },
+                       {
+                           "name":  "directadmin-port",
+                           "type":  "int",
+                           "default":  "2222",
+                           "help":  "foreign DirectAdmin panel mimic port"
+                       },
+                       {
+                           "name":  "https-alt-port",
+                           "type":  "int",
+                           "default":  "8443",
+                           "help":  "foreign alt-HTTPS mimic port"
+                       },
+                       {
+                           "name":  "docker-port",
+                           "type":  "int",
+                           "default":  "5000",
+                           "help":  "foreign Docker Registry mimic port"
+                       },
+                       {
+                           "name":  "grafana-port",
+                           "type":  "int",
+                           "default":  "3000",
+                           "help":  "foreign Grafana mimic port"
+                       },
+                       {
+                           "name":  "prometheus-port",
+                           "type":  "int",
+                           "default":  "9090",
+                           "help":  "foreign Prometheus mimic port"
+                       },
+                       {
+                           "name":  "cpanel-port",
+                           "type":  "int",
+                           "default":  "2083",
+                           "help":  "foreign cPanel mimic port"
+                       },
+                       {
+                           "name":  "whm-port",
+                           "type":  "int",
+                           "default":  "2087",
+                           "help":  "foreign WHM mimic port"
+                       },
+                       {
+                           "name":  "webmail-port",
+                           "type":  "int",
+                           "default":  "2096",
+                           "help":  "foreign Webmail mimic port"
+                       },
+                       {
+                           "name":  "postgres-port",
+                           "type":  "int",
+                           "default":  "5432",
+                           "help":  "foreign PostgreSQL (STARTTLS) mimic port"
+                       },
+                       {
+                           "name":  "mysql-port",
+                           "type":  "int",
+                           "default":  "3306",
+                           "help":  "foreign MySQL (STARTTLS) mimic port"
+                       },
+                       {
+                           "name":  "tls-servername",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "TLS SNI (set to the foreign\u0027s domain for a real cert)"
+                       },
+                       {
+                           "name":  "socks-port",
+                           "type":  "int",
+                           "default":  "0",
+                           "help":  "local SOCKS5 bind port"
+                       },
+                       {
+                           "name":  "socks-bind",
+                           "type":  "string",
+                           "default":  "127.0.0.1",
+                           "help":  "SOCKS5 bind address (use the container veth IP or 0.0.0.0 for LAN/router clients; only on a trusted network)"
+                       },
+                       {
+                           "name":  "token",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "auth token from the foreign node"
+                       },
+                       {
+                           "name":  "profile",
+                           "type":  "string",
+                           "default":  "balanced",
+                           "help":  "throughput profile: balanced|high-speed"
+                       },
+                       {
+                           "name":  "min",
+                           "type":  "int",
+                           "default":  "0",
+                           "help":  "min warm-up connections (0 = profile)"
+                       },
+                       {
+                           "name":  "max",
+                           "type":  "int",
+                           "default":  "0",
+                           "help":  "max connections (0 = profile)"
+                       },
+                       {
+                           "name":  "bw",
+                           "type":  "int",
+                           "default":  "0",
+                           "help":  "per-connection Mbps cap (0 = profile)"
+                       },
+                       {
+                           "name":  "jitter",
+                           "type":  "int",
+                           "default":  "-1",
+                           "help":  "bandwidth jitter Mbps (-1 = profile)"
+                       },
+                       {
+                           "name":  "tun",
+                           "type":  "bool",
+                           "default":  "false",
+                           "help":  "also expose this node as a TUN network interface (opt-in)"
+                       },
+                       {
+                           "name":  "tun-name",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "TUN interface name (default: auto, e.g. hedioum0)"
+                       },
+                       {
+                           "name":  "tun-addr",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "TUN gateway CIDR (default: auto, e.g. 10.200.0.1/24)"
+                       },
+                       {
+                           "name":  "dns",
+                           "type":  "bool",
+                           "default":  "false",
+                           "help":  "run a :53 DNS forwarder on the TUN gateway IP (requires --tun)"
+                       },
+                       {
+                           "name":  "gateway",
+                           "type":  "bool",
+                           "default":  "false",
+                           "help":  "transparent L3 gateway: forward transit traffic on the LAN iface into the tunnel (implies --tun; for MikroTik/router use)"
+                       },
+                       {
+                           "name":  "gateway-iface",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "LAN-facing interface to forward from (default: auto, e.g. eth0)"
+                       },
+                       {
+                           "name":  "gateway-lan",
+                           "type":  "string",
+                           "default":  "",
+                           "help":  "optional comma-list of LAN subnets to scope forwarding (default: all transit)"
+                       }
+                   ],
+    "check-ip":  [
+
+                 ]
+}

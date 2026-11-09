@@ -6,11 +6,7 @@ import (
 	"github.com/backpack/backpack/internal/mimicmgr"
 )
 
-type MimicRequest struct {
-	Name   string          `json:"name"`
-	Action string          `json:"action"`
-	Config json.RawMessage `json:"config,omitempty"`
-}
+type MimicRequest = mimicmgr.ToolRequest
 
 func executeMimic(req Request) Response {
 	var r MimicRequest
@@ -20,6 +16,44 @@ func executeMimic(req Request) Response {
 	m := mimicmgr.Default
 	ctx := context.Background()
 	switch r.Action {
+	case "options":
+		return okBody(mimicmgr.ToolOptions())
+	case "prepare":
+		result, err := m.Prepare(ctx, r)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
+	case "diagnose":
+		result, err := m.StartDiagnostic(r)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
+	case "job":
+		result, err := m.Diagnostic(r.Name, r.JobID)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
+	case "preflight":
+		result, err := m.Preflight(ctx, r.Name)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
+	case "integration":
+		result, err := m.Integration(r.Name)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
+	case "host-action":
+		result, err := m.HostAction(ctx, r)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
 	case "list":
 		items, err := m.List(ctx)
 		if err != nil {

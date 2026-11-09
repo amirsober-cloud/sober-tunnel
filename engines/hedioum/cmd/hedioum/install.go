@@ -35,6 +35,9 @@ func renderUnit(tunCapable bool) string {
 // TUN-capable, the foreign is not) and reloads systemd. Best-effort: it is a no-op
 // when the service is not installed or we are not privileged.
 func reconcileUnit(role string) {
+	if os.Getenv("SOBER_MIMIC_PREVIEW") == "1" {
+		return
+	}
 	if _, err := os.Stat(installUnitPath); err != nil {
 		return // not installed under systemd (e.g. dev run)
 	}

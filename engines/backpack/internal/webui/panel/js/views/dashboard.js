@@ -15,6 +15,7 @@ import * as api from '../api.js';
 import { toast, oops, onFix } from '../ui/toast.js';
 import { confirmBox } from '../ui/confirm.js';
 import { go } from '../router.js';
+import { mountMimicFleet } from '../ui/mimic-fleet.js';
 
 /* ---- the rate chart behind a card ---------------------------------------- */
 /* The preview drew a fixed path; this is the same shape from real samples. */
@@ -438,7 +439,9 @@ export function dashboard(ctx) {
       <button class="sb" data-act="restartall">Restart all</button>
       <button class="sb primary" data-act="add">Add tunnel</button>
     </div>
-    <div class="grid3" id="tGrid"></div>`;
+    <div class="grid3" id="tGrid"></div><section id="mimic-fleet"></section>`;
+
+  const stopMimicFleet=mountMimicFleet($('#mimic-fleet',view));
 
   const grid = $('#tGrid', view);
   const held = new Map();   // name -> { el, sig }
@@ -662,6 +665,7 @@ export function dashboard(ctx) {
   document.addEventListener('click', closeSheets);
 
   ctx.setTeardown(() => {
+    stopMimicFleet();
     unsub();
     offView();
     offPerOpen();

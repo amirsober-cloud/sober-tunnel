@@ -17,6 +17,10 @@ func (s *server) handleMimic(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
+		if r.URL.Query().Get("options") == "1" {
+			writeJSON(w, mimicmgr.ToolOptions())
+			return
+		}
 		name := r.URL.Query().Get("name")
 		if name == "" {
 			items, err := camouflage.List(r.Context())
@@ -47,16 +51,36 @@ func (s *server) handleMimic(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{"name": name, "config": cfg})
 	case http.MethodPost:
-		var req struct {
-			Name   string          `json:"name"`
-			Action string          `json:"action"`
-			Config json.RawMessage `json:"config"`
-		}
+		var req mimicmgr.ToolRequest
 		if err := decodeJSON(w, r, &req); err != nil {
 			http.Error(w, "invalid request", 400)
 			return
 		}
 		var err error
+		switch req.Action {
+		case "prepare", "diagnose", "job", "preflight", "integration", "host-action":
+			var result any
+			switch req.Action {
+			case "prepare":
+				result, err = camouflage.Prepare(r.Context(), req)
+			case "diagnose":
+				result, err = camouflage.StartDiagnostic(req)
+			case "job":
+				result, err = camouflage.Diagnostic(req.Name, req.JobID)
+			case "preflight":
+				result, err = camouflage.Preflight(r.Context(), req.Name)
+			case "integration":
+				result, err = camouflage.Integration(req.Name)
+			case "host-action":
+				result, err = camouflage.HostAction(r.Context(), req)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+			writeJSON(w, result)
+			return
+		}
 		if req.Action == "save" {
 			err = camouflage.Save(r.Context(), req.Name, req.Config)
 		} else {
@@ -77,6 +101,10 @@ func (s *server) handleRemoteMimic(w http.ResponseWriter, r *http.Request, remot
 	var req node.MimicRequest
 	switch r.Method {
 	case http.MethodGet:
+		if r.URL.Query().Get("options") == "1" {
+			writeJSON(w, mimicmgr.ToolOptions())
+			return
+		}
 		req.Name = r.URL.Query().Get("name")
 		req.Action = "list"
 		if req.Name != "" {
@@ -90,7 +118,7 @@ func (s *server) handleRemoteMimic(w http.ResponseWriter, r *http.Request, remot
 			http.Error(w, "invalid request", 400)
 			return
 		}
-		if req.Action != "save" && req.Action != "start" && req.Action != "stop" && req.Action != "restart" && req.Action != "delete" {
+		if req.Action != "save" && req.Action != "start" && req.Action != "stop" && req.Action != "restart" && req.Action != "delete" && req.Action != "prepare" && req.Action != "diagnose" && req.Action != "job" && req.Action != "preflight" && req.Action != "integration" && req.Action != "host-action" {
 			http.Error(w, "unknown action", 400)
 			return
 		}

@@ -15,3 +15,5 @@ Makefile text eol=lf
 VERSION text eol=lf
 *.tmpl text eol=lf
 *.md text eol=lf
+*.py text eol=lf
+*.ps1 text eol=lf

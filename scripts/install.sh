@@ -4,10 +4,14 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ $EUID -eq 0 ]] || { echo 'Run this installer as root.' >&2; exit 1; }
 command -v systemctl >/dev/null
 test -x "$root/build/sober-tunnel" || { echo 'Build sober-tunnel first: bash scripts/build.sh' >&2; exit 1; }
+test -x "$root/build/sober-tunnel-mimic" || { echo 'Build the native tools first: bash scripts/build.sh' >&2; exit 1; }
 # Install a previously built local artifact. Never run upstream installers.
 install -d -m 0755 /opt/sober-tunnel /etc/sober-tunnel
 install -d -m 0700 /etc/sober-tunnel/mimic
-install -m 0755 "$root/build/sober-tunnel" /usr/local/bin/sober-tunnel
+install -m 0755 "$root/build/sober-tunnel" /usr/local/bin/sober-tunnel.new
+mv -f /usr/local/bin/sober-tunnel.new /usr/local/bin/sober-tunnel
+install -m 0755 "$root/build/sober-tunnel-mimic" /usr/local/bin/sober-tunnel-mimic.new
+mv -f /usr/local/bin/sober-tunnel-mimic.new /usr/local/bin/sober-tunnel-mimic
 install -m 0644 "$root/NOTICE" "$root/README.md" /opt/sober-tunnel/
 install -d -m 0755 /opt/sober-tunnel/licenses
 install -m 0644 "$root/engines/backpack/LICENSE" /opt/sober-tunnel/licenses/BackPack-AGPL-3.0.txt
@@ -54,5 +58,6 @@ UMask=0077
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now sober-tunnel-webui.service sober-tunnel-monitor.service
+systemctl enable sober-tunnel-webui.service sober-tunnel-monitor.service
+systemctl restart sober-tunnel-webui.service sober-tunnel-monitor.service
 echo 'Installed sober-tunnel. Run sudo sober-tunnel to view the panel address and login credentials.'

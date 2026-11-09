@@ -269,7 +269,7 @@ func cmdEditForeign(args []string) {
 	cfg.EgressIPMode = *egressMode
 	cfg.EgressBindIP = *bindIP
 	hd := *httpDecoyPort
-	if hd == 0 {
+	if hd == 0 || hd == -1 {
 		hd = -1 // sentinel: disabled (0 would be re-defaulted to 80 on load)
 	} else if err := validPort(hd); err != nil {
 		fail("--http-decoy-port: %v", err)

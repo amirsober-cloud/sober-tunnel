@@ -10,3 +10,5 @@ if [[ -n "${RELEASE_PUBLIC_KEY:-}" ]]; then
 fi
 cd "$root/engines/backpack"
 go build -p "${SOBER_BUILD_PARALLELISM:-1}" -trimpath -ldflags "$flags" -o "$root/build/sober-tunnel" .
+cd "$root/engines/hedioum"
+go build -p "${SOBER_BUILD_PARALLELISM:-1}" -trimpath -ldflags '-s -w' -o "$root/build/sober-tunnel-mimic" ./cmd/hedioum

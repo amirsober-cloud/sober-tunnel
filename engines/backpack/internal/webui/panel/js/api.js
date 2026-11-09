@@ -62,6 +62,7 @@ export const tunnels = () => get('/api/tunnels');
 
 const mimicPath = (node, extra = '') => '/api/mimic?node=' + encodeURIComponent(node || '') + extra;
 export const mimicInstances = node => get(mimicPath(node));
+export const mimicOptions = () => get(mimicPath('', '&options=1'));
 export const mimicSettings = (name, node) => get(mimicPath(node, '&name=' + encodeURIComponent(name)));
 export const mimicLogs = (name, node) => get(mimicPath(node, '&logs=1&name=' + encodeURIComponent(name)));
 export const mimicAction = (payload, node) => post(mimicPath(node), payload);

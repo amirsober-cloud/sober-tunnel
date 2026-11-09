@@ -5,10 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"os/signal"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -97,6 +102,8 @@ func testNodeConnection(n config.ForeignNode) {
 			// the host's main table or default route (SSH stays safe).
 			cleanup, routed := ensureTunTestRoute(gw, n.TunName)
 			defer cleanup()
+			stopSignalCleanup := cleanupOnInterrupt(cleanup)
+			defer stopSignalCleanup()
 			if !routed {
 				color.Yellow("   ! no temporary test route installed (need root + iproute2); result may reflect the host route, not the TUN.")
 			}
@@ -120,23 +127,48 @@ func ensureTunTestRoute(gatewayIP, tunName string) (cleanup func(), ok bool) {
 	if _, err := exec.LookPath("ip"); err != nil {
 		return noop, false
 	}
-	const table = "5199"
-	const prio = "5199"
-	// Clear any stale leftovers from an interrupted run.
-	_ = exec.Command("ip", "rule", "del", "priority", prio).Run()
-	_ = exec.Command("ip", "route", "flush", "table", table).Run()
+	for attempt := 0; attempt < 20; attempt++ {
+		table := strconv.Itoa(52000 + rand.IntN(8000))
+		prio := table
+		routes, _ := exec.Command("ip", "route", "show", "table", table).Output()
+		rules, err := exec.Command("ip", "rule", "show").Output()
+		if err != nil || len(strings.TrimSpace(string(routes))) > 0 || strings.Contains(string(rules), prio+":") || strings.Contains(string(rules), "lookup "+table) {
+			continue
+		}
+		if exec.Command("ip", "route", "add", "default", "dev", tunName, "table", table).Run() != nil {
+			continue
+		}
+		removeRoute := func() { _ = exec.Command("ip", "route", "del", "default", "dev", tunName, "table", table).Run() }
+		if exec.Command("ip", "rule", "add", "from", gatewayIP, "lookup", table, "priority", prio).Run() != nil {
+			removeRoute()
+			continue
+		}
+		var once sync.Once
+		return func() {
+			once.Do(func() {
+				_ = exec.Command("ip", "rule", "del", "from", gatewayIP, "lookup", table, "priority", prio).Run()
+				removeRoute()
+			})
+		}, true
+	}
+	return noop, false
+}
 
-	if err := exec.Command("ip", "route", "add", "default", "dev", tunName, "table", table).Run(); err != nil {
-		return noop, false
-	}
-	if err := exec.Command("ip", "rule", "add", "from", gatewayIP, "lookup", table, "priority", prio).Run(); err != nil {
-		_ = exec.Command("ip", "route", "flush", "table", table).Run()
-		return noop, false
-	}
-	return func() {
-		_ = exec.Command("ip", "rule", "del", "from", gatewayIP, "lookup", table, "priority", prio).Run()
-		_ = exec.Command("ip", "route", "flush", "table", table).Run()
-	}, true
+// The worker sends an interrupt before terminating a timed-out diagnostic.
+// Remove only this test's own rule/route before exiting.
+func cleanupOnInterrupt(cleanup func()) func() {
+	ch := make(chan os.Signal, 1)
+	done := make(chan struct{})
+	signal.Notify(ch, os.Interrupt)
+	go func() {
+		select {
+		case <-ch:
+			cleanup()
+			os.Exit(1)
+		case <-done:
+		}
+	}()
+	return func() { signal.Stop(ch); close(done) }
 }
 
 // runEgressChecks verifies real egress through a client bound to the tunnel: the exit

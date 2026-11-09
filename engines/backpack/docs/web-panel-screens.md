@@ -2,11 +2,17 @@
 
 ## sober-tunnel integration: Camouflage
 
-The `#/camouflage` page manages the camouflage engine from the same authenticated
-panel. Select this server or a registered SSH-managed server, edit the complete
-native JSON configuration, validate/save, start/stop/restart/delete the instance,
-and inspect its journal. Stop an active instance before editing. Credentials and
-service actions on this page require administrator access.
+The `#/tunnels/camouflage` page manages the camouflage engine from Tunnels and
+Add tunnel; `#/camouflage` remains an alias. Select this server or a registered
+SSH-managed server. Native setup/edit forms expose Persona, pairing tokens,
+all protocol ports, SOCKS, pools, bandwidth, TUN, DNS and gateway settings.
+Build a preview before saving; stop an active instance before editing.
+Preflight checks report listen-port conflicts. Probe, connection, speed and IP
+reputation checks run as bounded background jobs with displayed output.
+Generate per-node x-ui SOCKS outbound and routing snippets from saved hub ports.
+The complete JSON editor, service actions and journal remain available.
+SSH relocation, firewall and BBR operations each require explicit confirmation.
+All these operations and credentials require administrator access.
 
 This added page is part of sober-tunnel. The upstream verification stamps below
 refer to the preserved BackPack documentation.

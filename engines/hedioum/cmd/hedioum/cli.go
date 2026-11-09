@@ -43,6 +43,12 @@ func runSubcommand(name string, args []string) {
 		cmdTestConnection(args)
 	case "check-ip":
 		cmdCheckIP(args)
+	case "pairing":
+		cmdPairing(args)
+	case "host-ssh":
+		cmdHostSSH(args)
+	case "host-bbr":
+		enableBBR()
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -82,6 +88,8 @@ Usage:
   sober-tunnel-mimic speedtest [--node NAME] [--mimic ssh|tls] [--seconds N] [--dir down|up|both]
   sober-tunnel-mimic probe     [--node NAME]    Test each endpoint (mimic) and report reachability
   sober-tunnel-mimic check-ip                   Report the egress IP's reputation (clean vs flagged)
+  sober-tunnel-mimic test [--node NAME]          Check exit IP, websites, DNS and TUN through the hub
+  sober-tunnel-mimic pairing [--public-ip IP]    Export a saved foreign exit's pairing token
 
 Flags for the default mode:
   --reset            Wipe the config and re-run the setup wizard

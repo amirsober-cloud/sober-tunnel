@@ -14,7 +14,7 @@ import { NUMERIC } from '../lib/numeric.js';
 import * as api from '../api.js';
 import { setupLinkHTML, bindSetupLink } from '../ui/setuplink.js';
 import * as store from '../store.js';
-import { openScreen } from '../ui/screen.js';
+import { openScreen, closeScreen } from '../ui/screen.js';
 import { oops, toast } from '../ui/toast.js';
 import { go } from '../router.js';
 
@@ -22,6 +22,9 @@ export function addView(ctx) {
   openScreen('add', {
     pick: '.dlg',
     bind: async (root, close) => {
+      const engineChoice=document.createElement('div');engineChoice.className='mimic-engine-choice';
+      engineChoice.innerHTML='<b>Choose tunnel engine</b><p>Use the transport form below, or create a Camouflage / Hedioum tunnel with Persona, pairing and a local x-ui SOCKS5 bridge.</p><button type="button">Camouflage / Hedioum</button>';
+      engineChoice.querySelector('button').addEventListener('click',()=>{go('/tunnels/camouflage');});root.prepend(engineChoice);
       dialogSubtitle(root, store.get().stats, 'this server’s end — the other is built from its setup link');
       let opts = { families: [], presets: [] };
       try { opts = await api.tunnelOptions(); } catch (e) { oops(e); }
@@ -1080,7 +1083,7 @@ export function addView(ctx) {
         return { r, name: payload.name };
       }
 
-      ctx.setTeardown(close);
+      ctx.setTeardown(closeScreen);
     },
   }).catch(oops);
 }

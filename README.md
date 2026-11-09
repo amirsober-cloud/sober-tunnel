@@ -31,8 +31,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/amirsober-cloud/sober-tunnel
 بعد از نصب، دستور `sober-tunnel` آدرس پنل و مشخصات ورود را نشان می‌دهد.
 HTTPS اولیه گواهی خودامضا دارد. این نسخه آزمایشی است.
 
-موتور camouflage هم در همین پنل مدیریت می‌شود. نام ابزار مستقل آن در کد منبع
-`sober-tunnel-mimic` است؛ نصب اصلی از باینری یکپارچهٔ `sober-tunnel` استفاده می‌کند.
+موتور camouflage از بخش **Tunnels → Add tunnel → Camouflage / Hedioum** ساخته
+و مدیریت می‌شود. فرم‌های اصلی، Persona، توکن pairing، تست اتصال و سرعت و
+تنظیمات آمادهٔ x-ui در پنل قرار دارند. ابزار native هم با نام
+`sober-tunnel-mimic` نصب می‌شود؛ اجرای تونل‌ها از باینری یکپارچهٔ `sober-tunnel` است.
+راهنمای اتصال از SOCKS محلی `127.0.0.1` در [راهنمای x-ui](docs/x-ui.md) آمده است.
 
 ## Build and install
 
@@ -53,7 +56,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1
 Installation is an explicit step on the target Linux host; no upstream installer
 is invoked. The CLI shows the generated panel login and secret URL. Normal
 tunnels use the existing Tunnels screen. The Camouflage screen supports server
-selection, JSON templates, validation/save, start/stop/restart/delete, and logs.
+selection, native setup/edit forms, pairing, diagnostics, preflight checks,
+x-ui exports, advanced JSON, validation/save, start/stop/restart/delete, and logs.
 Configure the foreign exit first; copy its token into the Iran hub's node
 configuration and set the actual foreign endpoint. A running camouflage instance
 must be stopped before its config can be edited.

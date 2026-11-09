@@ -1,6 +1,6 @@
 # Integration status
 
-Updated 2026-11-09 after testing on an Ubuntu 24.04 x86_64 VPS with Go 1.26.10.
+Updated 2026-11-10 after testing on an Ubuntu 24.04 x86_64 VPS with Go 1.26.10.
 The combined binary builds and the HTTPS panel and monitor are installed as
 experimental systemd services. This is a tested integration preview, not a
 claim that every upstream feature has been validated on a production route.
@@ -30,6 +30,13 @@ claim that every upstream feature has been validated on a production route.
   verifies the official Go archive checksum, and builds the combined executable.
   Fresh panel configurations enable HTTPS. Standalone camouflage commands,
   services, container packaging and updater assets use `sober-tunnel-mimic`.
+- v0.1.4 also builds/installs the native helper for the unified Tunnels workflow.
+  Forms use its original setup/edit commands and flag validations, with Persona,
+  all mimic ports, pairing, SOCKS/pool/bandwidth, TUN, DNS and gateway controls.
+  Edits produce a validated private preview before an explicit save. Native
+  probe/test/speed/IP checks run as bounded asynchronous jobs on local or
+  SSH-managed servers. x-ui exports use the saved per-node SOCKS listener.
+  Optional SSH/firewall/BBR actions require separate explicit confirmations.
 
 ## Initial Windows verification
 
@@ -69,6 +76,26 @@ validation/systemd. They do not establish that systemd works on Windows.
 - v0.1.3 passed the camouflage CLI/config/sysutil/egress and panel/app/manager
   package tests. Its installed HTTPS panel accepted login and authenticated
   stats/camouflage API requests after restarting both systemd services.
+- v0.1.4 passed native CLI/config and manager/node/panel package tests, including
+  real native setup → pairing export → hub setup, token rotation, rejection of
+  invalid pools without changing live config, occupied-port detection, x-ui
+  export, and route-cleanup isolation. An original edit bug for a disabled HTTP
+  decoy was fixed. All 32 existing JavaScript tests passed.
+- In a disposable container, the actual panel API prepared/saved/started both
+  engines, completed asynchronous Probe and download/upload speed jobs, exported
+  x-ui settings, and sent an HTTPS request through the local SOCKS bridge and
+  camouflage tunnel to example.com (HTTP 200). The systemctl adapter in this
+  container started real engine processes; it did not emulate tunnel traffic.
+  The installed VPS panel and monitor run v0.1.4; its HTTPS login returned 200.
+- Chromium exercised the real panel in the disposable container: Tunnels → Add
+  tunnel → engine selection, foreign/hub form previews, pairing round-trip,
+  parseable x-ui export and asynchronous Probe output all passed with zero
+  runtime exceptions. A navigation teardown issue found by this check was fixed.
+  A diagnostic also completed after its short-lived node RPC process exited.
+  These checks are reproducible with `scripts/check-native-panel.py` and
+  `scripts/check-native-browser.mjs` in a disposable container. The local Windows
+  browser could not reach the VPS over its SSH forward; no conclusion about
+  every external browser route is implied by the container check.
 - The public one-line installer completed in a fresh Ubuntu 24.04 container,
   cloning anonymously, installing missing prerequisites and verified Go,
   building v0.1.3, and writing both units and a mode-0600 HTTPS configuration.
@@ -95,10 +122,9 @@ validation/systemd. They do not establish that systemd works on Windows.
   need an actual sober-tunnel release and its own signing key. The repository
   and source installer are public; no binary release was published. Source
   installation does not establish a signed upgrade channel.
-- Advanced Hedioum settings are currently exposed through the complete JSON
-  editor, rather than separate guided forms for every individual field. Pool
-  events are available through its journal; they are not yet merged into the
-  existing transport metrics/alerts charts.
+- The advanced JSON editor remains available alongside the native setup/edit
+  forms. Pool events are available through the journal; they are not yet merged
+  into the existing transport metrics/alerts charts.
 
 ## Recommended Linux validation
 

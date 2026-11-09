@@ -102,6 +102,7 @@ router.route('/tunnels', dashboard);
 router.route('/terminal', terminalView);
 router.route('/manage', manageView);
 router.route('/camouflage', mimicView);
+router.route('/tunnels/camouflage', mimicView);
 /* Servers is out of the dock while the fleet is reworked. The route stays so a
    bookmark or a link from an alert still opens something rather than bouncing
    to the overview. */
@@ -113,6 +114,7 @@ router.route('/servers', serversView);
 /* The pages a dialog can be opened over. Which one is drawn underneath is the
    page you were on, not a guess — see router.setHome. */
 const PAGES = {
+	'/tunnels/camouflage': mimicView,
   '/camouflage': mimicView,
   '/': overview, '/conntest': connTestView, '/tunnels': dashboard,
   '/terminal': terminalView, '/manage': manageView, '/servers': serversView,

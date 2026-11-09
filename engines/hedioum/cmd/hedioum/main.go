@@ -14,6 +14,7 @@ import (
 	"github.com/hedioum/Hedioum-Pool-Tunnel/internal/firewall"
 	"github.com/hedioum/Hedioum-Pool-Tunnel/internal/ingress"
 	"github.com/hedioum/Hedioum-Pool-Tunnel/internal/logging"
+	"github.com/hedioum/Hedioum-Pool-Tunnel/tooling"
 	"golang.org/x/term"
 )
 
@@ -34,9 +35,15 @@ import (
 // ip_forward), with a RouterOS-7.22 ip-rule-priority guard. Validated end-to-end on
 // a real RouterOS CHR and on a plain Linux router. Wire protocol UNCHANGED since
 // v0.8.0; gateway/TUN are hub-side only, so v0.11 hubs interoperate with v0.9 foreigns.
-const AppVersion = "v0.1.3"
+const AppVersion = "v0.1.4"
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "panel-job" {
+		if err := tooling.RunJob(os.Args[2]); err != nil {
+			fail("diagnostic worker: %v", err)
+		}
+		return
+	}
 	// Management subcommands (a non-flag first argument): install, setup-*, etc.
 	// The no-argument invocation (dashboard on a TTY / daemon under systemd) and
 	// the --reset/--open-firewall flags fall through to the logic below.

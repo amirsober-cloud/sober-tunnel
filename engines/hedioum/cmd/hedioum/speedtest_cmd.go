@@ -22,6 +22,12 @@ func cmdSpeedtest(args []string) {
 	seconds := fs.Int("seconds", 10, "test duration per direction")
 	dir := fs.String("dir", "both", "down|up|both")
 	_ = fs.Parse(args)
+	if *seconds < 1 || *seconds > 60 {
+		fail("--seconds must be 1..60")
+	}
+	if *dir != "down" && *dir != "up" && *dir != "both" {
+		fail("--dir must be down, up or both")
+	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {

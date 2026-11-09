@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -228,6 +229,9 @@ func cmdSetupForeign(args []string) {
 		}
 	}
 	if *moveSSH {
+		if os.Getenv("SOBER_MIMIC_PREVIEW") == "1" {
+			fail("SSH relocation is not available in a configuration preview")
+		}
 		if err := sysutil.ChangeSSHPort(strconv.Itoa(*decoyPort)); err != nil {
 			color.Red("[x] Failed to relocate OpenSSH to %d: %v", *decoyPort, err)
 		} else {
@@ -595,6 +599,9 @@ func cmdRemoveNode(args []string) {
 
 // restartDaemon best-effort applies config changes via systemd.
 func restartDaemon() {
+	if os.Getenv("SOBER_MIMIC_PREVIEW") == "1" {
+		return
+	}
 	if err := exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run(); err != nil {
 		color.Yellow("[-] Could not restart the daemon automatically; apply changes manually.")
 	}

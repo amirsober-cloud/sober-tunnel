@@ -26,6 +26,10 @@ claim that every upstream feature has been validated on a production route.
   bootstrap installs engines only; it does not start another management panel.
 - Online updater points at sober-tunnel and requires this distribution's own
   release signing key. Upstream keys cannot replace the combined executable.
+- Public GitHub source installer bootstraps missing Debian/Ubuntu dependencies,
+  verifies the official Go archive checksum, and builds the combined executable.
+  Fresh panel configurations enable HTTPS. Standalone camouflage commands,
+  services, container packaging and updater assets use `sober-tunnel-mimic`.
 
 ## Initial Windows verification
 
@@ -62,6 +66,14 @@ validation/systemd. They do not establish that systemd works on Windows.
   in an isolated container. An HTTPS request through its SOCKS5 -> TLS mimic ->
   authenticated egress path returned HTTP 200 from example.com.
 - All 32 Node tests in `internal/webui/paneltest/*.test.js` passed.
+- v0.1.3 passed the camouflage CLI/config/sysutil/egress and panel/app/manager
+  package tests. Its installed HTTPS panel accepted login and authenticated
+  stats/camouflage API requests after restarting both systemd services.
+- The public one-line installer completed in a fresh Ubuntu 24.04 container,
+  cloning anonymously, installing missing prerequisites and verified Go,
+  building v0.1.3, and writing both units and a mode-0600 HTTPS configuration.
+  That container used a systemctl stub; actual service startup was checked
+  separately on the experimental VPS.
 - The installed panel passed HTTPS login, admin-only camouflage API checks,
   asset serving, and invalid-instance-name rejection. Both panel and monitor
   services were active after installation.
@@ -79,9 +91,10 @@ validation/systemd. They do not establish that systemd works on Windows.
   not been run. Passing the selected matrix is not a performance guarantee.
 - Kernel TUN/gateway routing, MTU on real routes, raw-socket carriers, and
   geographically separate two-node operation still need live validation.
-- Publish/install/update/fleet rollout need an actual sober-tunnel release and
-  its own signing key. No public release was published. Source-code upload and
-  installing this experimental VPS do not establish an upgrade channel.
+- Signed binary releases, online updates and a fleet-wide upgrade rollout still
+  need an actual sober-tunnel release and its own signing key. The repository
+  and source installer are public; no binary release was published. Source
+  installation does not establish a signed upgrade channel.
 - Advanced Hedioum settings are currently exposed through the complete JSON
   editor, rather than separate guided forms for every individual field. Pool
   events are available through its journal; they are not yet merged into the

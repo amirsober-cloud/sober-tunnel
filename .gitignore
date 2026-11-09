@@ -24,3 +24,8 @@ Thumbs.db
 
 # Environment files
 .env
+
+# Private clone metadata retained locally; engine source is versioned normally.
+.upstream-git/
+engines/hedioum/.claude/
+engines/hedioum/docs/social-preview.png

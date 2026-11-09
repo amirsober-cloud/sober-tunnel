@@ -1,0 +1,14 @@
+.mimic-page {padding:24px 0;line-height:1.6}
+.mimic-page h1 {font-size:24px}.mimic-page h2 {font-size:18px}
+.mimic-layout {display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,3fr);gap:24px}
+.mimic-layout section {min-width:0;padding:20px;border:1px solid var(--line,#444);border-radius:14px}
+.mimic-page label {display:block;margin:12px 0}
+.mimic-page input,.mimic-page select,.mimic-page textarea {display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #666;border-radius:8px;background:var(--bg,#171717);color:var(--fg,#eee);font:inherit}
+.mimic-page textarea {font:13px/1.6 monospace;resize:vertical;tab-size:2}
+.mimic-page button {padding:8px 12px;margin:4px;border:1px solid #666;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.mimic-page button:disabled {opacity:.5;cursor:wait}
+.mimic-page button:focus-visible,.mimic-page input:focus-visible,.mimic-page textarea:focus-visible {outline:2px solid #7aafff;outline-offset:2px}
+.mimic-instance {display:block;width:100%;text-align:left}.mimic-instance span {display:block;font-size:12px}
+.mimic-page pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:400px;overflow:auto}
+.mimic-actions {display:flex;flex-wrap:wrap}#mimic-result {white-space:pre-wrap}
+@media(max-width:700px) {.mimic-layout {grid-template-columns:1fr}.mimic-layout section {padding:12px}}

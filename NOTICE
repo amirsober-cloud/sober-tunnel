@@ -1,0 +1,19 @@
+sober-tunnel
+Copyright (c) 2026 amirsober-cloud
+
+Based on BackPack by Amin Mohammadi (AminMGMT)
+https://github.com/AminMGMT/BackPack
+
+Includes Hedioum-Pool-Tunnel by its respective contributors:
+https://github.com/hedioum/Hedioum-Pool-Tunnel
+
+BackPack source and its AGPL-3.0 license, additional notices, and trademark
+policy are preserved in engines/backpack/{LICENSE,NOTICE,TRADEMARK.md}.
+Hedioum source and its GPL-3.0 license are preserved in engines/hedioum.
+The combined control plane links these copyleft components. The original
+MIT LICENSE at the repository root applies to the original sober-tunnel
+code; it does not relicense either upstream component. New integration
+code under engines/backpack is AGPL-3.0; under engines/hedioum it is GPL-3.0.
+See those licenses for distribution and corresponding-source requirements.
+
+Upstream source snapshots and local changes: engines/README.md.

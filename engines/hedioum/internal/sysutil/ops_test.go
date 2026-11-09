@@ -9,9 +9,9 @@ import (
 // architecture — the release-asset names install.sh and the updater rely on.
 func TestTargetAsset(t *testing.T) {
 	got := targetAsset()
-	want := "hedioum-tunnel"
+	want := "sober-tunnel-mimic"
 	if runtime.GOARCH == "arm64" {
-		want = "hedioum-tunnel-arm64"
+		want = "sober-tunnel-mimic-arm64"
 	}
 	if got != want {
 		t.Fatalf("targetAsset() = %q, want %q for GOARCH=%s", got, want, runtime.GOARCH)
@@ -26,16 +26,16 @@ func TestAssetURL(t *testing.T) {
 	rel.Assets = append(rel.Assets, struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
-	}{Name: "hedioum-tunnel", BrowserDownloadURL: "https://example.com/amd64"})
+	}{Name: "sober-tunnel-mimic", BrowserDownloadURL: "https://example.com/amd64"})
 	rel.Assets = append(rel.Assets, struct {
 		Name               string `json:"name"`
 		BrowserDownloadURL string `json:"browser_download_url"`
-	}{Name: "hedioum-tunnel-arm64", BrowserDownloadURL: "https://example.com/arm64"})
+	}{Name: "sober-tunnel-mimic-arm64", BrowserDownloadURL: "https://example.com/arm64"})
 
-	if got := assetURL(rel, "hedioum-tunnel"); got != "https://example.com/amd64" {
+	if got := assetURL(rel, "sober-tunnel-mimic"); got != "https://example.com/amd64" {
 		t.Fatalf("amd64 url = %q", got)
 	}
-	if got := assetURL(rel, "hedioum-tunnel-arm64"); got != "https://example.com/arm64" {
+	if got := assetURL(rel, "sober-tunnel-mimic-arm64"); got != "https://example.com/arm64" {
 		t.Fatalf("arm64 url = %q", got)
 	}
 	if got := assetURL(rel, "nonexistent"); got != "" {

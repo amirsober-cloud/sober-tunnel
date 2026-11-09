@@ -31,7 +31,7 @@ const (
 	egressDual = "dual"
 )
 
-const tlsCertDir = "/etc/hedioum/tls"
+const tlsCertDir = "/etc/sober-tunnel/standalone/tls"
 
 // Egress dial policy, set once at StartForeignDaemon. Default is IPv4-only egress
 // so a misconfiguration can never leak the server's IPv6 identity.

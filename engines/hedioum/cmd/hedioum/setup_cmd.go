@@ -595,7 +595,7 @@ func cmdRemoveNode(args []string) {
 
 // restartDaemon best-effort applies config changes via systemd.
 func restartDaemon() {
-	if err := exec.Command("systemctl", "restart", "hedioum.service").Run(); err != nil {
+	if err := exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run(); err != nil {
 		color.Yellow("[-] Could not restart the daemon automatically; apply changes manually.")
 	}
 }

@@ -16,6 +16,24 @@ exposes the second core to the same binary. Each tunnel runs in its own process.
 The original `cmd/client` and `cmd/server` are retained as the earlier prototype;
 they are not the entrypoint for the integrated product.
 
+## نصب از GitHub
+
+روی سرور Linux دارای systemd، با کاربر root اجرا کنید:
+
+```sh
+bash <(curl -fsSL https://raw.githubusercontent.com/amirsober-cloud/sober-tunnel/main/install.sh)
+```
+
+نصب‌کننده کد را از همین مخزن می‌گیرد، پیش‌نیازها و نسخهٔ مناسب Go را آماده
+می‌کند و پنل و مانیتور را نصب می‌کند. نصب خودکار پیش‌نیازها روی Debian/Ubuntu
+پشتیبانی می‌شود؛ در توزیع‌های دیگر ابتدا `git`، `curl`، `tar`، `python3` و
+`ca-certificates` را نصب کنید. ساخت اولیه ممکن است چند دقیقه طول بکشد.
+بعد از نصب، دستور `sober-tunnel` آدرس پنل و مشخصات ورود را نشان می‌دهد.
+HTTPS اولیه گواهی خودامضا دارد. این نسخه آزمایشی است.
+
+موتور camouflage هم در همین پنل مدیریت می‌شود. نام ابزار مستقل آن در کد منبع
+`sober-tunnel-mimic` است؛ نصب اصلی از باینری یکپارچهٔ `sober-tunnel` استفاده می‌کند.
+
 ## Build and install
 
 Requires Go 1.26.10 or newer. Production management requires Linux + systemd.

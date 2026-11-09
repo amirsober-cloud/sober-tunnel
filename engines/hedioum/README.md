@@ -1,3 +1,5 @@
+> Upstream reference documentation retained for attribution and protocol details. For this fork, use the [sober-tunnel installation guide](../../README.md). The integrated binary is sober-tunnel; the optional standalone tool is sober-tunnel-mimic. Upstream install/update commands below do not apply to this fork.
+
 # Hedioum Dynamic Pool Tunnel (Chaos Mesh)
 
 [![Downloads](https://img.shields.io/github/downloads/hedioum/Hedioum-Pool-Tunnel/total?color=brightgreen&label=downloads)](https://github.com/hedioum/Hedioum-Pool-Tunnel/releases)

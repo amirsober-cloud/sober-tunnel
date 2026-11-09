@@ -1,11 +1,11 @@
-# Hedioum Dynamic Pool Tunnel - Build Automation
+# sober-tunnel camouflage engine - Build Automation
 # This Makefile automates the cross-compilation for Linux environments.
 
-BINARY_NAME=hedioum-tunnel
+BINARY_NAME=sober-tunnel-mimic
 MAIN_PATH=./cmd/hedioum
 BUILD_DIR=bin
 
-# Build metadata injected into the binary for `hedioum-tunnel version`.
+# Build metadata injected into the binary for `sober-tunnel-mimic version`.
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE   ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -38,11 +38,11 @@ build-linux-armv7: deps fmt
 
 # Build a single-arch container image for the host architecture.
 docker:
-	docker build -t ghcr.io/hedioum/pool-tunnel:latest .
+	docker build -t sober-tunnel-mimic:local .
 
 # Build and push a multi-arch image (amd64 + arm64 + armv7). Requires a buildx
 # builder and a logged-in registry; override IMAGE to your repo/tag.
-IMAGE ?= ghcr.io/hedioum/pool-tunnel:latest
+IMAGE ?= sober-tunnel-mimic:local
 docker-multiarch:
 	docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t $(IMAGE) --push .
 

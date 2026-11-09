@@ -53,7 +53,7 @@ func runInteractiveDashboard(cfg *config.AppConfig) {
 		// Enterprise Features added to the bottom of the menu
 		options = append(options,
 			"----------------------------------------",
-			"U. Update Hedioum Daemon (Self-Update)",
+			"U. Update sober-tunnel camouflage engine (Self-Update)",
 			"X. Uninstall & Remove Everything",
 			"D. Start Daemon Foreground (Debug)",
 			"0. Exit",
@@ -71,7 +71,7 @@ func runInteractiveDashboard(cfg *config.AppConfig) {
 		case strings.Contains(action, "Show Live Service Status"):
 			// Print clean systemd status summary
 			color.HiCyan("\n=== [ System Daemon Status ] ===")
-			runSystemCmd("systemctl", "status", "hedioum.service", "--no-pager", "-n", "0")
+			runSystemCmd("systemctl", "status", "sober-tunnel-mimic.service", "--no-pager", "-n", "0")
 
 			if cfg.Role == "iran" {
 				if len(cfg.ForeignNodes) > 0 {
@@ -128,7 +128,7 @@ func runInteractiveDashboard(cfg *config.AppConfig) {
 
 		case strings.Contains(action, "View Real-time Logs"):
 			color.Cyan("\n[*] Tailing logs. Press Ctrl+C to return to the dashboard.\n")
-			runInterruptible("journalctl", "-u", "hedioum.service", "-f", "-n", "30")
+			runInterruptible("journalctl", "-u", "sober-tunnel-mimic.service", "-f", "-n", "30")
 
 		case strings.Contains(action, "Add New Foreign Egress Node"):
 			setupIranNode(cfg, false)
@@ -175,8 +175,8 @@ func runInteractiveDashboard(cfg *config.AppConfig) {
 			cmdCheckIP(nil)
 
 		case strings.Contains(action, "Restart the Service"):
-			color.HiBlue("\n[*] Restarting hedioum.service (re-warms every pool)...")
-			if err := exec.Command("systemctl", "restart", "hedioum.service").Run(); err != nil {
+			color.HiBlue("\n[*] Restarting sober-tunnel-mimic.service (re-warms every pool)...")
+			if err := exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run(); err != nil {
 				color.Yellow("[-] Restart failed (are you root?): %v", err)
 			} else {
 				color.Green("[✓] Service restarted; pools re-warming.")
@@ -188,7 +188,7 @@ func runInteractiveDashboard(cfg *config.AppConfig) {
 			color.HiRed("WARNING: You must update this token on your Iran Hub immediately.")
 			saveAndRestart(cfg)
 
-		case strings.Contains(action, "Update Hedioum Daemon"):
+		case strings.Contains(action, "Update sober-tunnel camouflage engine"):
 			color.HiBlue("\n--- Core System Updater ---")
 			sysutil.SelfUpdate(AppVersion)
 
@@ -291,7 +291,7 @@ func saveAndRestart(cfg *config.AppConfig) {
 
 	// Execute non-blocking service restart if managed by systemd
 	color.HiBlue("[*] Restarting background daemon to apply state changes...")
-	err := exec.Command("systemctl", "restart", "hedioum.service").Run()
+	err := exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run()
 	if err != nil {
 		color.Yellow("[-] Systemd restart failed (Are you running as root?). Apply changes manually.")
 	} else {

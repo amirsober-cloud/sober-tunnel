@@ -34,7 +34,7 @@ import (
 // ip_forward), with a RouterOS-7.22 ip-rule-priority guard. Validated end-to-end on
 // a real RouterOS CHR and on a plain Linux router. Wire protocol UNCHANGED since
 // v0.8.0; gateway/TUN are hub-side only, so v0.11 hubs interoperate with v0.9 foreigns.
-const AppVersion = "v0.11.1"
+const AppVersion = "v0.1.3"
 
 func main() {
 	// Management subcommands (a non-flag first argument): install, setup-*, etc.
@@ -95,7 +95,7 @@ func main() {
 	if err != nil {
 		isFirstLaunch = true
 		// The setup wizard needs an interactive terminal. When stdin is not a TTY
-		// (the installer's trailing `exec hedioum-tunnel` over a pipe/EOF, or a
+		// (the installer's trailing `exec sober-tunnel-mimic` over a pipe/EOF, or a
 		// systemd start with no config), running the wizard would EOF every prompt,
 		// persist a bogus config, and then block. Print the non-interactive setup
 		// hint and exit cleanly — the binary is installed; the operator runs setup-*.
@@ -116,7 +116,7 @@ func main() {
 	if isInteractive {
 		if isFirstLaunch {
 			color.HiBlue("\n[*] Bootstrapping background daemon...")
-			err := exec.Command("systemctl", "start", "hedioum.service").Run()
+			err := exec.Command("systemctl", "start", "sober-tunnel-mimic.service").Run()
 			if err != nil {
 				// Soft warning for non-systemd environments (e.g., local dev testing)
 				color.Yellow("[-] Note: Could not auto-start systemd service. If not using systemd, start daemon manually.")
@@ -135,7 +135,7 @@ func main() {
 // systemd path and the --foreground debug mode.
 func runDaemon(cfg *config.AppConfig) {
 	logging.Init(false) // level via HEDIOUM_LOG_LEVEL (debug|info|warn|error)
-	slog.Info("hedioum daemon starting", "version", AppVersion, "role", cfg.Role)
+	slog.Info("sober-tunnel camouflage engine starting", "version", AppVersion, "role", cfg.Role)
 	switch cfg.Role {
 	case "foreign":
 		egress.StartForeignDaemon(cfg)
@@ -217,16 +217,16 @@ func isTerminal(f *os.File) bool {
 // binary is launched with no config on a non-interactive stdin.
 func printSetupHint() {
 	color.HiWhite("\nConfigure non-interactively, then start the service:")
-	color.HiWhite("  Foreign: hedioum-tunnel setup-foreign            (auto-picks a persona; prints a pairing token)")
-	color.HiWhite("  Iran:    hedioum-tunnel setup-iran --alias NAME --token <PAIRING_TOKEN> --socks-port N")
-	color.HiWhite("  Then:    systemctl start hedioum.service")
+	color.HiWhite("  Foreign: sober-tunnel-mimic setup-foreign            (auto-picks a persona; prints a pairing token)")
+	color.HiWhite("  Iran:    sober-tunnel-mimic setup-iran --alias NAME --token <PAIRING_TOKEN> --socks-port N")
+	color.HiWhite("  Then:    systemctl start sober-tunnel-mimic.service")
 	color.HiBlack("  (The pairing token carries the IP, ports and persona — no --target-ip/--mimics needed.)")
-	color.HiBlack("  (Or run 'hedioum-tunnel' on an interactive terminal for the guided wizard.)")
+	color.HiBlack("  (Or run 'sober-tunnel-mimic' on an interactive terminal for the guided wizard.)")
 }
 
 func printHeader() {
 	color.Cyan("=========================================================")
-	color.HiCyan("   Hedioum Dynamic Pool Tunnel - Management Dashboard")
+	color.HiCyan("   sober-tunnel - Management Dashboard")
 	color.HiWhite("   Version: %s | Core: Chaos Mesh Routing", AppVersion)
 	color.Cyan("=========================================================\n")
 }

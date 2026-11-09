@@ -14,6 +14,6 @@ var (
 )
 
 func printVersion() {
-	fmt.Printf("hedioum-tunnel %s (commit %s, built %s, %s/%s)\n",
+	fmt.Printf("sober-tunnel-mimic %s (commit %s, built %s, %s/%s)\n",
 		Version, Commit, Date, runtime.GOOS, runtime.GOARCH)
 }

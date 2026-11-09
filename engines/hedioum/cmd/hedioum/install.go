@@ -14,7 +14,7 @@ import (
 	"github.com/hedioum/Hedioum-Pool-Tunnel/internal/sysutil"
 )
 
-//go:embed hedioum.service.tmpl
+//go:embed sober-tunnel-mimic.service.tmpl
 var systemdUnit string
 
 // renderUnit fills the systemd unit template. tunCapable adds CAP_NET_ADMIN so
@@ -45,8 +45,8 @@ func reconcileUnit(role string) {
 }
 
 const (
-	installBinPath  = "/usr/local/bin/hedioum-tunnel"
-	installUnitPath = "/etc/systemd/system/hedioum.service"
+	installBinPath  = "/usr/local/bin/sober-tunnel-mimic"
+	installUnitPath = "/etc/systemd/system/sober-tunnel-mimic.service"
 )
 
 // cmdInstall self-installs the running binary + the systemd unit, with no network
@@ -58,8 +58,8 @@ func cmdInstall(args []string) {
 
 	// The config/working directory must exist before the (namespaced) service can
 	// start — the hardened unit sets WorkingDirectory + ReadWritePaths to it.
-	if err := os.MkdirAll("/etc/hedioum", 0755); err != nil {
-		fail("cannot create /etc/hedioum: %v", err)
+	if err := os.MkdirAll("/etc/sober-tunnel/standalone", 0755); err != nil {
+		fail("cannot create /etc/sober-tunnel/standalone: %v", err)
 	}
 
 	self, err := os.Executable()
@@ -86,25 +86,25 @@ func cmdInstall(args []string) {
 		fail("failed to write systemd unit: %v", err)
 	}
 	_ = exec.Command("systemctl", "daemon-reload").Run()
-	_ = exec.Command("systemctl", "enable", "hedioum.service").Run()
+	_ = exec.Command("systemctl", "enable", "sober-tunnel-mimic.service").Run()
 	color.Green("[✓] systemd service installed and enabled.")
 
 	enableBBR()
 
 	color.HiWhite("\nNext:")
-	color.HiWhite("  Foreign: hedioum-tunnel setup-foreign [--move-ssh]")
-	color.HiWhite("  Iran:    hedioum-tunnel setup-iran --alias ... --target IP:PORT --socks-port N --token HEX")
-	color.HiWhite("  Then:    systemctl start hedioum.service")
+	color.HiWhite("  Foreign: sober-tunnel-mimic setup-foreign [--move-ssh]")
+	color.HiWhite("  Iran:    sober-tunnel-mimic setup-iran --alias ... --target IP:PORT --socks-port N --token HEX")
+	color.HiWhite("  Then:    systemctl start sober-tunnel-mimic.service")
 }
 
 // enableBBR turns on the BBR congestion control + fq qdisc, a large throughput
 // win on high-latency/lossy links. Best-effort; ignored on kernels without BBR.
 func enableBBR() {
 	const conf = "net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\n"
-	if err := os.WriteFile("/etc/sysctl.d/99-hedioum-bbr.conf", []byte(conf), 0644); err != nil {
+	if err := os.WriteFile("/etc/sysctl.d/99-sober-tunnel-mimic-bbr.conf", []byte(conf), 0644); err != nil {
 		return
 	}
-	if err := exec.Command("sysctl", "-p", "/etc/sysctl.d/99-hedioum-bbr.conf").Run(); err == nil {
+	if err := exec.Command("sysctl", "-p", "/etc/sysctl.d/99-sober-tunnel-mimic-bbr.conf").Run(); err == nil {
 		color.Green("[✓] Enabled BBR congestion control (fq qdisc).")
 	}
 }

@@ -12,3 +12,6 @@
 *.sum text eol=lf
 *.work text eol=lf
 Makefile text eol=lf
+VERSION text eol=lf
+*.tmpl text eol=lf
+*.md text eol=lf

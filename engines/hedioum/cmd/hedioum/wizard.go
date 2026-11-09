@@ -17,11 +17,11 @@ import (
 )
 
 func handleReset() {
-	if err := os.Remove("/etc/hedioum/hedioum.json"); err != nil && !os.IsNotExist(err) {
-		os.Remove("hedioum.json") // Fallback to local directory
+	if err := os.Remove("/etc/sober-tunnel/standalone/sober-tunnel-mimic.json"); err != nil && !os.IsNotExist(err) {
+		os.Remove("sober-tunnel-mimic.json") // Fallback to local directory
 	}
 	color.Yellow("[-] Configuration purged. Resetting daemon state...\n")
-	exec.Command("systemctl", "stop", "hedioum.service").Run()
+	exec.Command("systemctl", "stop", "sober-tunnel-mimic.service").Run()
 }
 
 func runSetupWizard() *config.AppConfig {

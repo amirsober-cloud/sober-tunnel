@@ -119,15 +119,15 @@ type ForeignNode struct {
 }
 
 // getConfigPath determines the storage destination for the configuration.
-// Production uses /etc/hedioum; when running as root we always use it (SaveConfig
+// Production uses /etc/sober-tunnel/standalone; when running as root we always use it (SaveConfig
 // creates it) so a fresh install does not accidentally write the config to the
 // current working directory. Non-root dev falls back to the local directory.
 func getConfigPath() string {
 	if path := os.Getenv("SOBER_MIMIC_CONFIG"); path != "" {
 		return path
 	}
-	const prodDir = "/etc/hedioum"
-	const fileName = "hedioum.json"
+	const prodDir = "/etc/sober-tunnel/standalone"
+	const fileName = "sober-tunnel-mimic.json"
 
 	if stat, err := os.Stat(prodDir); err == nil && stat.IsDir() {
 		return filepath.Join(prodDir, fileName)

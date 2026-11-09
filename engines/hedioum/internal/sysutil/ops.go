@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	binaryPath = "/usr/local/bin/hedioum-tunnel"
-	backupPath = "/usr/local/bin/hedioum-tunnel.bak"
+	binaryPath = "/usr/local/bin/sober-tunnel-mimic"
+	backupPath = "/usr/local/bin/sober-tunnel-mimic.bak"
 	// stagePath is deliberately in the SAME directory as binaryPath so the final
 	// swap is an atomic same-filesystem rename (a /tmp staging area risks EXDEV).
-	stagePath = "/usr/local/bin/hedioum-tunnel.new"
-	repoAPI   = "https://api.github.com/repos/hedioum/Hedioum-Pool-Tunnel/releases/latest"
+	stagePath = "/usr/local/bin/sober-tunnel-mimic.new"
+	repoAPI   = "https://api.github.com/repos/amirsober-cloud/sober-tunnel/releases/latest"
 
 	minBinarySize    = 1024 * 1024 // sanity floor for a real binary
 	downloadAttempts = 3
@@ -37,7 +37,7 @@ type GitHubRelease struct {
 // SelfUpdate downloads and installs a newer release from GitHub, with retries,
 // a semver "is-newer" check, and automatic rollback. When GitHub is unreachable
 // (e.g. filtered) it prints the manual path: download the binary and run
-// `hedioum-tunnel update --file /path`.
+// `sober-tunnel-mimic update --file /path`.
 func SelfUpdate(currentVersion string) {
 	color.Cyan("[*] Checking for updates...")
 
@@ -104,9 +104,9 @@ func fetchLatestRelease() (*GitHubRelease, error) {
 
 func targetAsset() string {
 	if runtime.GOARCH == "arm64" {
-		return "hedioum-tunnel-arm64"
+		return "sober-tunnel-mimic-arm64"
 	}
-	return "hedioum-tunnel"
+	return "sober-tunnel-mimic"
 }
 
 func assetURL(release *GitHubRelease, name string) string {
@@ -136,7 +136,7 @@ func downloadWithRetry(url, dst string, attempts int) error {
 
 func manualHint() {
 	color.Yellow("    GitHub may be blocked. Download '%s' manually and run:", targetAsset())
-	color.HiWhite("      hedioum-tunnel update --file /path/to/%s", targetAsset())
+	color.HiWhite("      sober-tunnel-mimic update --file /path/to/%s", targetAsset())
 }
 
 // installStaged swaps stagePath into place with backup + restart + health-check +
@@ -161,9 +161,9 @@ func installStaged(label string) {
 	os.Chmod(binaryPath, 0755)
 
 	color.Cyan("[*] Restarting daemon...")
-	exec.Command("systemctl", "restart", "hedioum.service").Run()
+	exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run()
 	time.Sleep(2 * time.Second)
-	if err := exec.Command("systemctl", "is-active", "--quiet", "hedioum.service").Run(); err != nil {
+	if err := exec.Command("systemctl", "is-active", "--quiet", "sober-tunnel-mimic.service").Run(); err != nil {
 		color.HiRed("[!] New version failed to start; rolling back!")
 		rollback()
 		return
@@ -199,22 +199,22 @@ func rollback() {
 		color.Red("[x] FATAL: Rollback failed! Manual intervention required.")
 		return
 	}
-	exec.Command("systemctl", "restart", "hedioum.service").Run()
+	exec.Command("systemctl", "restart", "sober-tunnel-mimic.service").Run()
 	color.Yellow("[-] System has been successfully rolled back to the previous version.")
 }
 
-// Uninstall safely purges all Hedioum components from the server
+// Uninstall safely purges the standalone camouflage components from the server.
 func Uninstall() {
-	color.Yellow("[*] Stopping and disabling Hedioum service...")
-	exec.Command("systemctl", "stop", "hedioum.service").Run()
-	exec.Command("systemctl", "disable", "hedioum.service").Run()
+	color.Yellow("[*] Stopping and disabling sober-tunnel-mimic service...")
+	exec.Command("systemctl", "stop", "sober-tunnel-mimic.service").Run()
+	exec.Command("systemctl", "disable", "sober-tunnel-mimic.service").Run()
 
 	color.Yellow("[*] Removing Systemd service file...")
-	os.Remove("/etc/systemd/system/hedioum.service")
+	os.Remove("/etc/systemd/system/sober-tunnel-mimic.service")
 	exec.Command("systemctl", "daemon-reload").Run()
 
 	color.Yellow("[*] Removing binaries and configuration files...")
-	os.RemoveAll("/etc/hedioum")
+	os.RemoveAll("/etc/sober-tunnel/standalone")
 	os.Remove(binaryPath)
 	os.Remove(backupPath)
 
@@ -223,7 +223,7 @@ func Uninstall() {
 		exec.Command("ufw", "delete", "allow", "2022/tcp").Run()
 	}
 
-	color.Green("[✓] Hedioum has been completely removed from this system.")
+	color.Green("[✓] sober-tunnel-mimic has been completely removed from this system.")
 	color.HiRed("IMPORTANT: Remember to manually change your SSH port back to 22 in '/etc/ssh/sshd_config' if you moved it during installation!")
 	os.Exit(0)
 }

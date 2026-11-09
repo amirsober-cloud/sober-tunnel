@@ -53,35 +53,35 @@ func runSubcommand(name string, args []string) {
 }
 
 func printUsage() {
-	fmt.Print(`Hedioum Dynamic Pool Tunnel
+	fmt.Print(`sober-tunnel
 
 Usage:
-  hedioum-tunnel                      Interactive dashboard (TTY) or daemon (systemd)
-  hedioum-tunnel version              Print version and build info
-  hedioum-tunnel install              Install/enable the systemd service (self-copy)
-  hedioum-tunnel uninstall [--yes]    Stop, disable, and remove everything
-  hedioum-tunnel update [--file PATH]  Update from GitHub, or from a local binary
+  sober-tunnel-mimic                      Interactive dashboard (TTY) or daemon (systemd)
+  sober-tunnel-mimic version              Print version and build info
+  sober-tunnel-mimic install              Install/enable the systemd service (self-copy)
+  sober-tunnel-mimic uninstall [--yes]    Stop, disable, and remove everything
+  sober-tunnel-mimic update [--file PATH]  Update from GitHub, or from a local binary
 
-  hedioum-tunnel setup-foreign [flags]   Write the foreign (egress) config
+  sober-tunnel-mimic setup-foreign [flags]   Write the foreign (egress) config
       --listen-port N (default 22)  --decoy-port N (default 2022)
       --egress-mode ipv4|ipv6|dual  --egress-bind-ip IP  --move-ssh  --token HEX
 
-  hedioum-tunnel edit-foreign [flags]    Edit the foreign config in place (only the
+  sober-tunnel-mimic edit-foreign [flags]    Edit the foreign config in place (only the
       flags you pass change; token kept unless --token/--rotate-token)
-  hedioum-tunnel setup-iran   [flags]    Write the Iran (hub) config with one node
-  hedioum-tunnel add-node     [flags]    Append a foreign node to the hub config
+  sober-tunnel-mimic setup-iran   [flags]    Write the Iran (hub) config with one node
+  sober-tunnel-mimic add-node     [flags]    Append a foreign node to the hub config
       --alias NAME  --target HOST:PORT  --socks-port N  --token HEX
       [--min N --max N --bw N --jitter N]
       [--tun [--tun-name hedioumN] [--tun-addr 10.200.N.1/24] [--dns]]
           --tun also exposes the node as an OS-level interface (opt-in; SOCKS stays
           on). --tun-name/--tun-addr auto-assign when omitted; --dns adds a leak-free
           :53 forwarder on the gateway IP.
-  hedioum-tunnel edit-node --alias NAME [flags]  Edit a node in place (only the flags
+  sober-tunnel-mimic edit-node --alias NAME [flags]  Edit a node in place (only the flags
       you pass change; token kept unless --token/--rotate-token)
-  hedioum-tunnel remove-node --alias NAME
-  hedioum-tunnel speedtest [--node NAME] [--mimic ssh|tls] [--seconds N] [--dir down|up|both]
-  hedioum-tunnel probe     [--node NAME]    Test each endpoint (mimic) and report reachability
-  hedioum-tunnel check-ip                   Report the egress IP's reputation (clean vs flagged)
+  sober-tunnel-mimic remove-node --alias NAME
+  sober-tunnel-mimic speedtest [--node NAME] [--mimic ssh|tls] [--seconds N] [--dir down|up|both]
+  sober-tunnel-mimic probe     [--node NAME]    Test each endpoint (mimic) and report reachability
+  sober-tunnel-mimic check-ip                   Report the egress IP's reputation (clean vs flagged)
 
 Flags for the default mode:
   --reset            Wipe the config and re-run the setup wizard

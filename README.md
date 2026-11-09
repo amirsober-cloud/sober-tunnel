@@ -84,13 +84,3 @@ tests, and a real camouflage HTTPS request have passed. An experimental HTTPS
 panel is running on the test VPS. See [integration-status.md](docs/integration-status.md)
 for the exact matrix and remaining validation; all upstream modes have not yet
 been exercised on a real route.
-
-## Attribution and licenses
-
-Based on BackPack by Amin Mohammadi (AminMGMT)
-https://github.com/AminMGMT/BackPack
-
-Includes [Hedioum-Pool-Tunnel](https://github.com/hedioum/Hedioum-Pool-Tunnel).
-Their source licenses/notices are preserved. See [NOTICE](NOTICE) and
-[engine provenance](engines/README.md). The original MIT license does not
-relicense the incorporated GPL/AGPL components.

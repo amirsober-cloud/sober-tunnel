@@ -124,19 +124,20 @@ func Rule() {
 	fmt.Println(Gray + "═══════════════════════════════════════════════════════" + Reset)
 }
 
-// Logo prints the backpack banner and version.
+// Logo prints the sober-tunnel banner and version.
 func Logo(version string) {
 	fmt.Print(Red)
 	fmt.Println(`
- ██████╗  █████╗  ██████╗██╗  ██╗██████╗  █████╗  ██████╗██╗  ██╗
- ██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝
- ██████╔╝███████║██║     █████╔╝ ██████╔╝███████║██║     █████╔╝
- ██╔══██╗██╔══██║██║     ██╔═██╗ ██╔═══╝ ██╔══██║██║     ██╔═██╗
- ██████╔╝██║  ██║╚██████╗██║  ██╗██║     ██║  ██║╚██████╗██║  ██╗
- ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝`)
+ ███████╗ ██████╗ ██████╗ ███████╗██████╗
+ ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗
+ ███████╗██║   ██║██████╔╝█████╗  ██████╔╝
+ ╚════██║██║   ██║██╔══██╗██╔══╝  ██╔══██╗
+ ███████║╚██████╔╝██████╔╝███████╗██║  ██║
+ ╚══════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+             T U N N E L`)
 	fmt.Print(Reset)
 	fmt.Printf("%s sober-tunnel  %s%s%s\n", Bold+White, Red, version, Reset)
-	fmt.Println(Gray + " TeleGram : @BlackProtocols  |  GitHub : https://github.com/AminMGMT" + Reset)
+	fmt.Println(Gray + " GitHub : https://github.com/amirsober-cloud/sober-tunnel" + Reset)
 }
 
 // Prompt reads a trimmed line after printing label.

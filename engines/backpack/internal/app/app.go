@@ -10,7 +10,7 @@ import (
 
 const (
 	// Version of the backpack engine.
-	Version = "v0.1.1"
+	Version = "v0.1.2"
 
 	// RepoOwner/RepoName identify the GitHub repository used by the installer
 	// and the release-based updater.
@@ -19,6 +19,8 @@ const (
 
 	// SourceURL is where the source lives, printed with the version.
 	SourceURL = "https://github.com/" + RepoOwner + "/" + RepoName
+
+	TelegramURL = "https://t.me/sobervpn"
 
 	// InstallDir is where the release bundle lives on the VPS.
 	InstallDir = "/opt/sober-tunnel"

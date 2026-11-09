@@ -748,6 +748,7 @@ func supportText(lang string) string {
 	return b("💛 "+tr(lang, "Support")) + "\n\n" +
 		"sober-tunnel\n" +
 		"GitHub : " + app.SourceURL + "\n" +
+		"Channel : " + app.TelegramURL + "\n" +
 		"Issues : " + app.SourceURL + "/issues"
 }
 

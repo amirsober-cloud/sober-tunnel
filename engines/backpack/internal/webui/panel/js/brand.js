@@ -2,5 +2,5 @@
 export const brand = Object.freeze({
   name: 'sober-tunnel',
   repository: 'https://github.com/amirsober-cloud/sober-tunnel',
-  telegram: '',
+  telegram: 'https://t.me/sobervpn',
 });

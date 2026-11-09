@@ -138,6 +138,7 @@ func Logo(version string) {
 	fmt.Print(Reset)
 	fmt.Printf("%s sober-tunnel  %s%s%s\n", Bold+White, Red, version, Reset)
 	fmt.Println(Gray + " GitHub : https://github.com/amirsober-cloud/sober-tunnel" + Reset)
+	fmt.Println(Gray + " Telegram : https://t.me/sobervpn" + Reset)
 }
 
 // Prompt reads a trimmed line after printing label.

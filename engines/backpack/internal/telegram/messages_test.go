@@ -70,6 +70,7 @@ func TestSupportTextFormat(t *testing.T) {
 	for _, want := range []string{
 		"sober-tunnel",
 		"GitHub : https://github.com/amirsober-cloud/sober-tunnel",
+		"Channel : https://t.me/sobervpn",
 		"Issues : https://github.com/amirsober-cloud/sober-tunnel/issues",
 	} {
 		if !strings.Contains(got, want) {

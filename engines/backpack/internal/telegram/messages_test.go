@@ -68,13 +68,17 @@ func TestSystemTextIsTrimmed(t *testing.T) {
 func TestSupportTextFormat(t *testing.T) {
 	got := supportText(LangEN)
 	for _, want := range []string{
-		"GitHub : ", "Channel : ",
-		"🔺 Tron [ TRX ] :",
-		"💠 USDT [ BEP20 ] :",
-		"💎 Gram [ TON ] :",
+		"sober-tunnel",
+		"GitHub : https://github.com/amirsober-cloud/sober-tunnel",
+		"Issues : https://github.com/amirsober-cloud/sober-tunnel/issues",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("support text is missing %q:\n%s", want, got)
+		}
+	}
+	for _, old := range []string{"AminMGMT", "BlackProtocols", "TTzuUAtsEsrLgNpFVLNTyLVJVRRFNWESYc", "0xc112AE9bfF7c59dEcFb34E988A397848D3093E82", "UQD9g40QubAICJ6zPqegtCY7s-joMx2DB8aIqA0xF1aHoCDs"} {
+		if strings.Contains(got, old) {
+			t.Errorf("support text still promotes upstream identity or wallets: %s", old)
 		}
 	}
 }

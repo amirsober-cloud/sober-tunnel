@@ -37,7 +37,7 @@ const OFFLINE = `<!doctype html>
     font:inherit;font-size:13.5px;font-weight:620;color:var(--bg);background:var(--tx)}
 </style></head>
 <body><div class="card">
-  <div class="mark"><svg viewBox="0 0 24 24"><path d="M8 6V5a4 4 0 018 0v1"/><path d="M5 8h14a2 2 0 012 2v8a3 3 0 01-3 3H6a3 3 0 01-3-3v-8a2 2 0 012-2z"/><path d="M9 12h6"/></svg></div>
+  <div class="mark"><svg viewBox="0 0 24 24"><path d="M4 20V10a8 8 0 0116 0v10M8 20V10a4 4 0 018 0v10"/><path d="M2 20h8M14 20h8"/></svg></div>
   <h1>No connection</h1>
   <p>The panel could not be reached. It runs on your server, so this usually
      means this device is offline &mdash; or the server is.</p>

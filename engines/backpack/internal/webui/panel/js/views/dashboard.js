@@ -608,7 +608,7 @@ export function dashboard(ctx) {
         body: 'Its config and its service are removed. This cannot be undone.',
         lines: [
           { text: `/etc/sober-tunnel/${name}.json` },
-          { text: `backpack-${name}.service` },
+          { text: `sober-tunnel-${name}.service` },
         ],
         go: 'Delete', danger: true,
       });

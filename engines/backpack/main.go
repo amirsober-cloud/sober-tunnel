@@ -135,7 +135,7 @@ func runProxy() {
 	go localproxy.Run(ctx)
 	<-sigChan
 	cancel()
-	logger.Info("backpack proxy stopped")
+	logger.Info("sober-tunnel proxy stopped")
 }
 
 // runEngine starts a single tunnel from a TOML config and blocks until a
@@ -155,5 +155,5 @@ func runEngine(configPath string) {
 	<-sigChan
 	cancel()
 	<-done
-	logger.Info("backpack engine stopped")
+	logger.Info("sober-tunnel engine stopped")
 }

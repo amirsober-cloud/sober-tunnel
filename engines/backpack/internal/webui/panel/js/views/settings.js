@@ -5,6 +5,7 @@
 
 import { $$, el, esc, dialogSubtitle, copyText, flashCopied } from '../lib/dom.js';
 import * as api from '../api.js';
+import { brand } from '../brand.js';
 import * as store from '../store.js';
 import { openScreen } from '../ui/screen.js';
 import { oops, toast } from '../ui/toast.js';
@@ -748,7 +749,7 @@ export function settingsView(ctx) {
       }));
 
       byText(/^changelog$/i).forEach(b => b.addEventListener('click', () =>
-        window.open('https://github.com/AminMGMT/BackPack/releases', '_blank', 'noopener')));
+        window.open(`${brand.repository}/releases`, '_blank', 'noopener')));
 
       byText(/^download$/i).forEach(b => b.addEventListener('click', () => {
         location.href = api.backupExportURL();

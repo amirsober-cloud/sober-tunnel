@@ -70,21 +70,21 @@ const (
 	CodeFailed    = 1
 )
 
-const usage = `backpack — non-interactive commands
+const usage = `sober-tunnel — non-interactive commands
 
-  backpack tunnel list [--json]         every tunnel and its state
-  backpack tunnel status <name> [--json]  one tunnel: state, peer, and what it has carried
-  backpack tunnel reset-usage <name> | --all
+  sober-tunnel tunnel list [--json]         every tunnel and its state
+  sober-tunnel tunnel status <name> [--json]  one tunnel: state, peer, and what it has carried
+  sober-tunnel tunnel reset-usage <name> | --all
                                         set what a tunnel has carried back to zero (restarts it)
-  backpack check -c <file>              validate a config without starting it
-  backpack link apply [--name N] [--host IP] '<setup link>'
+  sober-tunnel check -c <file>              validate a config without starting it
+  sober-tunnel link apply [--name N] [--host IP] '<setup link>'
                                         build and start the tunnel a setup link describes
-  backpack proxy enable <socks5|http> <port> [--user U --pass P]
-  backpack proxy disable | status [--json]
+  sober-tunnel proxy enable <socks5|http> <port> [--user U --pass P]
+  sober-tunnel proxy disable | status [--json]
                                         the built-in proxy a tunnel's port forwards to
-  backpack version [--json]
+  sober-tunnel version [--json]
 
-Run backpack with no arguments for the interactive menu.
+Run sober-tunnel with no arguments for the interactive menu.
 Exit codes: 0 ok, 1 failed, 2 usage, 3 not found, 4 unhealthy.
 `
 
@@ -401,13 +401,13 @@ func runCheck(args []string) Result {
 			continue
 		}
 		if path == "" {
-			path = rest[i] // `backpack check file.toml` as well as `-c file.toml`
+			path = rest[i] // `sober-tunnel check file.toml` as well as `-c file.toml`
 			continue
 		}
 		return fail(CodeUsage, "check takes one config file\n")
 	}
 	if path == "" {
-		return fail(CodeUsage, "check needs a config file: backpack check -c /etc/sober-tunnel/x.toml\n")
+		return fail(CodeUsage, "check needs a config file: sober-tunnel check -c /etc/sober-tunnel/x.toml\n")
 	}
 
 	problems := manage.ValidateConfigFile(path)
@@ -532,7 +532,7 @@ var (
 // linkAwait is how long `link apply` waits to see the tunnel reach the far end.
 var linkAwait = 25 * time.Second
 
-// runLink is `backpack link apply`: the kharej end of a tunnel from the setup
+// runLink is `sober-tunnel link apply`: the kharej end of a tunnel from the setup
 // link the Iran server printed, with nothing asked. It is also what the
 // one-line install runs once sober-tunnel is on the machine.
 func runLink(args []string) Result {
@@ -567,7 +567,7 @@ func runLink(args []string) Result {
 		}
 	}
 	if strings.TrimSpace(link) == "" {
-		return fail(CodeUsage, "link apply needs the setup link: backpack link apply 'backpack://…'\n")
+		return fail(CodeUsage, "link apply needs the setup link: sober-tunnel link apply 'backpack://…'\n")
 	}
 	if manage.IsConnTestLink(link) {
 		// A Connection Test link from the Iran server: nothing is installed,
@@ -661,7 +661,7 @@ func linkReport(done manage.LinkApplied) Result {
 	} else {
 		say("  %s Not connected yet (%s). It keeps trying on its own; if it stays down, check that the "+
 			"Iran server's tunnel port is open and that both ends are on the same version: "+
-			"backpack tunnel status %s\n%s", paint("33;1", "!"), strings.TrimSpace(detail), done.Name, rule)
+			"sober-tunnel tunnel status %s\n%s", paint("33;1", "!"), strings.TrimSpace(detail), done.Name, rule)
 		return Result{Out: b.String(), Code: CodeUnhealthy}
 	}
 }

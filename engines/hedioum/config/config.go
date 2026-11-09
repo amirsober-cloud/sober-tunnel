@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // AppConfig represents the root structure of the application configuration
@@ -163,6 +164,9 @@ func (c *AppConfig) Validate() error {
 	}
 	switch c.Role {
 	case "foreign":
+		if len(c.Mimics) == 0 {
+			return errors.New("mimics must not be empty")
+		}
 		if len(c.AuthToken) < 16 {
 			return errors.New("auth_token must contain at least 16 characters")
 		}
@@ -178,6 +182,11 @@ func (c *AppConfig) Validate() error {
 		}
 		if !portOK(c.DecoyPort) {
 			return errors.New("invalid decoy_port")
+		}
+		for _, m := range c.Mimics {
+			if m.Type == "ssh" && (ports[c.DecoyPort] || c.HTTPDecoyPort == c.DecoyPort) {
+				return errors.New("SSH decoy port conflicts with a camouflage listener")
+			}
 		}
 		if c.HTTPDecoyPort > 0 && (!portOK(c.HTTPDecoyPort) || ports[c.HTTPDecoyPort]) {
 			return errors.New("invalid or conflicting http_decoy_port")
@@ -204,6 +213,17 @@ func (c *AppConfig) Validate() error {
 			if !portOK(n.LocalSocksPort) {
 				return errors.New("invalid local_socks_port")
 			}
+			if n.SocksBind != "localhost" && net.ParseIP(n.SocksBind) == nil {
+				return errors.New("socks_bind must be an IP address or localhost")
+			}
+			for _, other := range c.ForeignNodes {
+				if other.Alias == n.Alias {
+					break
+				}
+				if other.LocalSocksPort == n.LocalSocksPort && listenersOverlap(other.SocksBind, n.SocksBind) {
+					return errors.New("conflicting SOCKS listeners")
+				}
+			}
 			bind := net.JoinHostPort(n.SocksBind, strconv.Itoa(n.LocalSocksPort))
 			if socks[bind] {
 				return errors.New("duplicate SOCKS listener")
@@ -215,20 +235,36 @@ func (c *AppConfig) Validate() error {
 			if n.BandwidthLimitMbps < 1 || n.BandwidthJitterMbps < 0 {
 				return errors.New("invalid bandwidth settings")
 			}
+			if len(n.Endpoints) == 0 {
+				return errors.New("node endpoints must not be empty")
+			}
 			for _, ep := range n.Endpoints {
 				host, p, err := net.SplitHostPort(ep.Target)
 				pn, pe := strconv.Atoi(p)
-				if err != nil || pe != nil || host == "" || !portOK(pn) || !known[ep.Mimic] {
+				if err != nil || pe != nil || host == "" || strings.ContainsAny(host, " \t\r\n/\\") || !portOK(pn) || !known[ep.Mimic] {
 					return errors.New("invalid endpoint target or mimic")
 				}
 			}
 			if n.TunEnabled || n.GatewayEnabled {
-				if n.TunName == "" || tuns[n.TunName] {
+				if !validInterface(n.TunName) || n.TunName == "lo" || tuns[n.TunName] {
 					return errors.New("missing or duplicate tun_name")
 				}
 				tuns[n.TunName] = true
-				if _, _, err := net.ParseCIDR(n.TunAddr); err != nil {
+				if ip, _, err := net.ParseCIDR(n.TunAddr); err != nil || ip.To4() == nil {
 					return errors.New("invalid tun_addr")
+				}
+			}
+			if n.DNSEnabled && !n.TunEnabled && !n.GatewayEnabled {
+				return errors.New("dns_enabled requires TUN or gateway mode")
+			}
+			if n.GatewayEnabled {
+				if n.GatewayIface != "" && (!validInterface(n.GatewayIface) || n.GatewayIface == "lo") {
+					return errors.New("invalid gateway_iface")
+				}
+				for _, cidr := range n.GatewayLAN {
+					if ip, _, err := net.ParseCIDR(cidr); err != nil || ip.To4() == nil {
+						return errors.New("gateway_lan must contain IPv4 CIDRs")
+					}
 				}
 			}
 		}
@@ -236,6 +272,30 @@ func (c *AppConfig) Validate() error {
 		return errors.New("role must be iran or foreign")
 	}
 	return nil
+}
+
+func listenersOverlap(a, b string) bool {
+	if a == "localhost" {
+		a = "127.0.0.1"
+	}
+	if b == "localhost" {
+		b = "127.0.0.1"
+	}
+	if a == "0.0.0.0" || a == "::" || b == "0.0.0.0" || b == "::" {
+		return true
+	}
+	return net.ParseIP(a).Equal(net.ParseIP(b))
+}
+func validInterface(name string) bool {
+	if len(name) == 0 || len(name) > 15 || name == "." || name == ".." {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-' || c == '.') {
+			return false
+		}
+	}
+	return true
 }
 
 // LoadConfig reads the configuration state from the persistent storage layer
@@ -257,6 +317,14 @@ func LoadConfig() (*AppConfig, error) {
 func parseConfig(data []byte) (*AppConfig, error) {
 	var cfg AppConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	var presence struct {
+		Nodes []struct {
+			Jitter *int `json:"bandwidth_jitter_mbps"`
+		} `json:"foreign_nodes"`
+	}
+	if err := json.Unmarshal(data, &presence); err != nil {
 		return nil, err
 	}
 
@@ -311,7 +379,7 @@ func parseConfig(data []byte) (*AppConfig, error) {
 		if cfg.ForeignNodes[i].BandwidthLimitMbps == 0 {
 			cfg.ForeignNodes[i].BandwidthLimitMbps = 8 // Default target: 8 Mbps per connection
 		}
-		if cfg.ForeignNodes[i].BandwidthJitterMbps == 0 {
+		if i >= len(presence.Nodes) || presence.Nodes[i].Jitter == nil {
 			cfg.ForeignNodes[i].BandwidthJitterMbps = 2 // Default jitter: +/- 2 Mbps (Chaos variance)
 		}
 	}
@@ -331,10 +399,31 @@ func SaveConfig(cfg *AppConfig) error {
 	// Ensure the parent directory exists if using localized paths
 	dir := filepath.Dir(configPath)
 	if dir != "." {
-		_ = os.MkdirAll(dir, 0755)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 	}
-
-	return os.WriteFile(configPath, data, 0600)
+	f, err := os.CreateTemp(dir, ".sober-config-*.json")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		return err
+	}
+	if _, err = f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), configPath)
 }
 
 // UpdateForeignNode rewrites an existing node configuration or appends it if missing

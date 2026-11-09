@@ -237,13 +237,16 @@ func restoredMode(target string, archived os.FileMode) os.FileMode {
 // into a staging tree first: the path here is not the path the file will have,
 // and the question being asked is what kind of file it is.
 func isTunnelConfigPath(target string) bool {
-	if filepath.Ext(target) != ".toml" {
-		return false
+	path := "/" + strings.TrimLeft(filepath.ToSlash(target), "/")
+	for _, dir := range []string{filepath.Base(app.ConfigDir), "backpack"} {
+		if filepath.Ext(target) == ".toml" && strings.Contains(path, "/"+dir+"/") {
+			return true
+		}
+		if filepath.Ext(target) == ".json" && strings.Contains(path, "/"+dir+"/mimic/") {
+			return true
+		}
 	}
-	// The config directory's own name is the last thing shared between the
-	// staging path and the live one.
-	return strings.Contains(filepath.ToSlash(target), "/"+filepath.Base(app.ConfigDir)+"/") ||
-		filepath.Base(filepath.Dir(target)) == filepath.Base(app.ConfigDir)
+	return false
 }
 
 // noteRestoredFile records which of the files the caller asks about were in

@@ -10,7 +10,7 @@ import (
 
 const (
 	// Version of the backpack engine.
-	Version = "v0.1.4"
+	Version = "v0.1.5"
 
 	// RepoOwner/RepoName identify the GitHub repository used by the installer
 	// and the release-based updater.
@@ -38,7 +38,8 @@ const (
 	ServicePrefix = "sober-tunnel-"
 
 	// BinPath is where the backpack binary is installed.
-	BinPath = "/usr/local/bin/sober-tunnel"
+	BinPath       = "/usr/local/bin/sober-tunnel"
+	NativeBinPath = "/usr/local/bin/sober-tunnel-mimic"
 
 	// TelegramConfig stores the telegram bot settings (JSON).
 	TelegramConfig = ConfigDir + "/telegram.json"

@@ -48,6 +48,12 @@ func executeMimic(req Request) Response {
 			return failf("%v", err)
 		}
 		return okBody(result)
+	case "xray-check":
+		result, err := m.ExistingXray(ctx, r.Name)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(result)
 	case "host-action":
 		result, err := m.HostAction(ctx, r)
 		if err != nil {

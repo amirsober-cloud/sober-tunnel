@@ -97,3 +97,43 @@ func TestHostActionRequiresExplicitConfirmationBeforeExecution(t *testing.T) {
 		t.Fatalf("missing confirmation guard: %v", err)
 	}
 }
+
+func TestStartRejectsEngineValidationFailureBeforeSystemd(t *testing.T) {
+	m := testManager(t)
+	writeHub(t, m, 1081)
+	m.Run = func(_ context.Context, bin string, args ...string) ([]byte, error) {
+		if bin == m.Binary {
+			return []byte("invalid endpoint"), fmt.Errorf("invalid")
+		}
+		t.Fatal("systemctl called before validation passed")
+		return nil, nil
+	}
+	if err := m.Action(context.Background(), "hub", "start"); err == nil {
+		t.Fatal("started a config the engine rejected")
+	}
+}
+
+func TestActiveServiceWithMissingListenerFailsPreflight(t *testing.T) {
+	c, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := c.Addr().(*net.TCPAddr).Port
+	c.Close()
+	m := testManager(t)
+	writeHub(t, m, port)
+	m.Run = func(context.Context, string, ...string) ([]byte, error) { return []byte("active\n"), nil }
+	checks, err := m.Preflight(context.Background(), "hub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range checks {
+		if strings.Contains(check.Name, "SOCKS5") {
+			if check.OK {
+				t.Fatal("active service incorrectly implied a healthy listener")
+			}
+			return
+		}
+	}
+	t.Fatal("missing listener check")
+}

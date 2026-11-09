@@ -8,10 +8,8 @@ test -x "$root/build/sober-tunnel-mimic" || { echo 'Build the native tools first
 # Install a previously built local artifact. Never run upstream installers.
 install -d -m 0755 /opt/sober-tunnel /etc/sober-tunnel
 install -d -m 0700 /etc/sober-tunnel/mimic
-install -m 0755 "$root/build/sober-tunnel" /usr/local/bin/sober-tunnel.new
-mv -f /usr/local/bin/sober-tunnel.new /usr/local/bin/sober-tunnel
-install -m 0755 "$root/build/sober-tunnel-mimic" /usr/local/bin/sober-tunnel-mimic.new
-mv -f /usr/local/bin/sober-tunnel-mimic.new /usr/local/bin/sober-tunnel-mimic
+install -d -m 0755 /usr/local/bin
+"$root/build/sober-tunnel" --install-bundle "$root/build"
 install -m 0644 "$root/NOTICE" "$root/README.md" /opt/sober-tunnel/
 install -d -m 0755 /opt/sober-tunnel/licenses
 install -m 0644 "$root/engines/backpack/LICENSE" /opt/sober-tunnel/licenses/BackPack-AGPL-3.0.txt

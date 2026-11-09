@@ -420,6 +420,9 @@ func TestARestoredTunnelConfigIsNotWorldReadable(t *testing.T) {
 		"/tmp/staging/etc/sober-tunnel/iran-main.toml",
 		"etc/backpack/kharej.toml",
 		"/var/lib/backpack-restore/backpack/tunnel.toml",
+		"backpack/nested/tunnel.toml",
+		"/tmp/staging/etc/sober-tunnel/mimic/hub.json",
+		"/tmp/staging/etc/sober-tunnel/mimic/tls-exit/account.json",
 	} {
 		if got := restoredMode(target, 0o644); got != app.TunnelConfigMode {
 			t.Errorf("%s would be restored %#o, want %#o", target, got, app.TunnelConfigMode)

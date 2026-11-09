@@ -32,6 +32,13 @@ var logger = utils.NewLogger("info")
 //   - Menu mode:    `backpack`  (no arguments)
 //     Opens the interactive management CLI on the VPS.
 func main() {
+	if handled, err := installBundleCommand(os.Args[1:]); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if handled, err := mimicCommand(os.Args[1:]); handled {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hedioum/Hedioum-Pool-Tunnel/config"
@@ -23,6 +24,8 @@ type Check struct {
 // Preflight checks availability without modifying SSH, firewall or routing.
 // A successful bind check is a snapshot; the service still owns final binding.
 func (m *Manager) Preflight(ctx context.Context, name string) ([]Check, error) {
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
 	if err := CheckName(name); err != nil {
 		return nil, err
 	}
@@ -32,12 +35,26 @@ func (m *Manager) Preflight(ctx context.Context, name string) ([]Check, error) {
 	}
 	checks := []Check{{Name: "Configuration", OK: true, Detail: "Native configuration validation passed"}}
 	active, _ := m.command(ctx, "systemctl", "is-active", m.unit(name))
-	running := string(active) == "active\n"
+	running := strings.TrimSpace(string(active)) == "active"
 	checks = append(checks, Check{Name: "Native tools", OK: fileExists(m.nativeBinary()), Detail: m.nativeBinary()})
 	listen := func(label, host string, port int) {
 		addr := net.JoinHostPort(host, strconv.Itoa(port))
 		if running {
-			checks = append(checks, Check{Name: label, OK: true, Detail: addr + " (instance running; see connection test)"})
+			dialHost := host
+			if host == "" || host == "0.0.0.0" || host == "localhost" {
+				dialHost = "127.0.0.1"
+			}
+			if host == "::" {
+				dialHost = "::1"
+			}
+			d := net.Dialer{Timeout: 2 * time.Second}
+			conn, e := d.DialContext(ctx, "tcp", net.JoinHostPort(dialHost, strconv.Itoa(port)))
+			if e != nil {
+				checks = append(checks, Check{Name: label, Detail: addr + " service active but listener unreachable: " + e.Error()})
+				return
+			}
+			conn.Close()
+			checks = append(checks, Check{Name: label, OK: true, Detail: addr + " TCP listener reachable; run Probe to authenticate the tunnel"})
 			return
 		}
 		lc := net.ListenConfig{}
@@ -137,8 +154,11 @@ func (m *Manager) Integration(name string) (any, error) {
 	result := []any{}
 	for _, n := range cfg.ForeignNodes {
 		host := n.SocksBind
-		if host == "" || host == "0.0.0.0" || host == "::" || host == "localhost" {
+		if host == "" || host == "0.0.0.0" || host == "localhost" {
 			host = "127.0.0.1"
+		}
+		if host == "::" {
+			host = "::1"
 		}
 		tag := "sober-" + name + "-" + n.Alias
 		server := map[string]any{"address": host, "port": n.LocalSocksPort}

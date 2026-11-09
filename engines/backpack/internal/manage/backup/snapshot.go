@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/backpack/backpack/internal/app"
+	"github.com/backpack/backpack/internal/bundle"
 	"github.com/backpack/backpack/internal/mimicmgr"
 )
 
@@ -52,6 +53,12 @@ func TakeSnapshot(reason string) (Snapshot, error) {
 		if err := copyFile(app.BinPath, filepath.Join(dir, "backpack"), 0755); err != nil {
 			os.RemoveAll(dir)
 			return Snapshot{}, fmt.Errorf("could not snapshot the binary: %w", err)
+		}
+	}
+	if core.FileExists(app.NativeBinPath) {
+		if err := copyFile(app.NativeBinPath, filepath.Join(dir, "native-helper"), 0755); err != nil {
+			os.RemoveAll(dir)
+			return Snapshot{}, fmt.Errorf("could not snapshot native tools: %w", err)
 		}
 	}
 
@@ -133,13 +140,19 @@ func RestoreSnapshot(s Snapshot, logf func(string)) error {
 	// 1) Binary.
 	if bin := filepath.Join(s.Dir, "backpack"); core.FileExists(bin) {
 		logf("Restoring the previous binary...")
-		tmp := app.BinPath + ".rollback"
-		if err := copyFile(bin, tmp, 0755); err != nil {
-			return fmt.Errorf("could not restore the binary: %w", err)
-		}
-		if err := os.Rename(tmp, app.BinPath); err != nil {
-			os.Remove(tmp)
-			return fmt.Errorf("could not replace the binary: %w", err)
+		if helper := filepath.Join(s.Dir, "native-helper"); core.FileExists(helper) {
+			if err := bundle.InstallPair(bin, helper, app.BinPath, app.NativeBinPath); err != nil {
+				return fmt.Errorf("could not restore executable bundle: %w", err)
+			}
+		} else {
+			tmp := app.BinPath + ".rollback"
+			if err := copyFile(bin, tmp, 0755); err != nil {
+				return fmt.Errorf("could not restore the binary: %w", err)
+			}
+			if err := os.Rename(tmp, app.BinPath); err != nil {
+				os.Remove(tmp)
+				return fmt.Errorf("could not replace the binary: %w", err)
+			}
 		}
 	}
 

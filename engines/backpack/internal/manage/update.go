@@ -30,6 +30,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/backpack/backpack/config"
 	"github.com/backpack/backpack/internal/app"
+	"github.com/backpack/backpack/internal/bundle"
 	"github.com/backpack/backpack/internal/optimize"
 	"github.com/backpack/backpack/internal/socks"
 )
@@ -431,14 +432,37 @@ func verifyChecksum(path, want string) error {
 // extractBinary pulls the `backpack` executable out of the release archive and
 // atomically replaces the installed binary.
 func extractBinary(archive string) error {
-	// Written next to the target so the final rename is atomic: the file being
-	// replaced is the one running every tunnel on this machine.
-	tmp := app.BinPath + ".new"
-	if err := extractBinaryTo(archive, tmp); err != nil {
-		os.Remove(tmp)
+	return installBundleArchive(archive, app.BinPath, app.NativeBinPath)
+}
+
+func installBundleArchive(archive, mainTarget, helperTarget string) error {
+	dir, err := os.MkdirTemp(filepath.Dir(mainTarget), ".sober-release-")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, app.BinPath)
+	defer os.RemoveAll(dir)
+	main := filepath.Join(dir, "sober-tunnel")
+	helper := filepath.Join(dir, "sober-tunnel-mimic")
+	if err = extractBinaryTo(archive, main); err != nil {
+		return err
+	}
+	if err = extractNamedBinaryTo(archive, helper, "sober-tunnel-mimic"); err != nil {
+		return fmt.Errorf("a release bundle must include both sober-tunnel and sober-tunnel-mimic: %w", err)
+	}
+	mainInfo, err := runBounded(main, 5*time.Second, "-v")
+	if err != nil {
+		return fmt.Errorf("could not verify the bundled main binary: %w", err)
+	}
+	helperInfo, err := runBounded(helper, 5*time.Second, "version")
+	if err != nil {
+		return fmt.Errorf("could not verify bundled native tools: %w", err)
+	}
+	version := versionLine(mainInfo)
+	fields := strings.Fields(helperInfo)
+	if version == "" || len(fields) < 2 || fields[0] != "sober-tunnel-mimic" || fields[1] != version {
+		return fmt.Errorf("bundle main and native tools must report the same version")
+	}
+	return bundle.InstallPair(main, helper, mainTarget, helperTarget)
 }
 
 // extractBinaryTo pulls the `backpack` binary out of a release archive and
@@ -450,6 +474,9 @@ func extractBinary(archive string) error {
 // touched. One implementation means the file that is inspected and the file
 // that is installed cannot be found by different rules.
 func extractBinaryTo(archive, dest string) error {
+	return extractNamedBinaryTo(archive, dest, "sober-tunnel")
+}
+func extractNamedBinaryTo(archive, dest, member string) error {
 	f, err := os.Open(archive)
 	if err != nil {
 		return err
@@ -470,8 +497,11 @@ func extractBinaryTo(archive, dest string) error {
 		if err != nil {
 			return err
 		}
-		if hdr.Typeflag != tar.TypeReg || filepath.Base(hdr.Name) != "sober-tunnel" {
+		if hdr.Typeflag != tar.TypeReg || filepath.Base(hdr.Name) != member {
 			continue
+		}
+		if hdr.Size <= 0 || hdr.Size > 256<<20 {
+			return fmt.Errorf("invalid %s file size", member)
 		}
 		out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 		if err != nil {
@@ -483,7 +513,7 @@ func extractBinaryTo(archive, dest string) error {
 		}
 		return out.Close()
 	}
-	return fmt.Errorf("no `sober-tunnel` binary found inside the archive")
+	return fmt.Errorf("no `%s` binary found inside the archive", member)
 }
 
 // ApplyUpdate downloads the latest release and installs it safely:

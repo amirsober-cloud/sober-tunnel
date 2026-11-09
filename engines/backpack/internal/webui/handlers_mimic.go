@@ -58,7 +58,7 @@ func (s *server) handleMimic(w http.ResponseWriter, r *http.Request) {
 		}
 		var err error
 		switch req.Action {
-		case "prepare", "diagnose", "job", "preflight", "integration", "host-action":
+		case "prepare", "diagnose", "job", "preflight", "integration", "host-action", "xray-check":
 			var result any
 			switch req.Action {
 			case "prepare":
@@ -71,6 +71,8 @@ func (s *server) handleMimic(w http.ResponseWriter, r *http.Request) {
 				result, err = camouflage.Preflight(r.Context(), req.Name)
 			case "integration":
 				result, err = camouflage.Integration(req.Name)
+			case "xray-check":
+				result, err = camouflage.ExistingXray(r.Context(), req.Name)
 			case "host-action":
 				result, err = camouflage.HostAction(r.Context(), req)
 			}
@@ -118,7 +120,7 @@ func (s *server) handleRemoteMimic(w http.ResponseWriter, r *http.Request, remot
 			http.Error(w, "invalid request", 400)
 			return
 		}
-		if req.Action != "save" && req.Action != "start" && req.Action != "stop" && req.Action != "restart" && req.Action != "delete" && req.Action != "prepare" && req.Action != "diagnose" && req.Action != "job" && req.Action != "preflight" && req.Action != "integration" && req.Action != "host-action" {
+		if req.Action != "save" && req.Action != "start" && req.Action != "stop" && req.Action != "restart" && req.Action != "delete" && req.Action != "prepare" && req.Action != "diagnose" && req.Action != "job" && req.Action != "preflight" && req.Action != "integration" && req.Action != "host-action" && req.Action != "xray-check" {
 			http.Error(w, "unknown action", 400)
 			return
 		}

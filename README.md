@@ -79,12 +79,17 @@ Source builds have no online release signing key. The online updater targets
 this repository and refuses installation until a sober-tunnel key is embedded
 using `RELEASE_PUBLIC_KEY` (shell) or `-ReleasePublicKey` (PowerShell). Offline
 installation from your own build remains available. A release archive must
-contain `sober-tunnel`, named `sober-tunnel_linux_<arch>.tar.gz`.
+contain both `sober-tunnel` and `sober-tunnel-mimic`, named
+`sober-tunnel_linux_<arch>.tar.gz`. Build it with `bash scripts/package.sh`.
+Updates and pre-update snapshots keep the two executables together. When
+upgrading v0.1.4 or earlier, run the source installer once: that older updater
+only knew about the main binary.
 
 ## Validation status
 
-The combined Linux build, selected backend and transport tests, 32 JavaScript
-tests, and a real camouflage HTTPS request have passed. An experimental HTTPS
-panel is running on the test VPS. See [integration-status.md](docs/integration-status.md)
-for the exact matrix and remaining validation; all upstream modes have not yet
-been exercised on a real route.
+The Linux build, native package suite, transport end-to-end suite, JavaScript
+checks and real Chromium workflow passed. Isolated runtime checks also carried
+HTTPS through Xray → local SOCKS → camouflage, and through a real kernel TUN
+with its DNS forwarder. See the [v0.1.5 validation report](docs/validation-2026-11-10.md)
+and [integration status](docs/integration-status.md) for the exact evidence and
+remaining live-route checks. No actual Iran server was available for those checks.

@@ -247,6 +247,15 @@ func (m *Manager) Action(ctx context.Context, name, action string) error {
 	default:
 		return errors.New("unknown action")
 	}
+	if action == "start" || action == "restart" {
+		if out, err := m.command(ctx, m.Binary, "--check-mimic", "--mimic-config", m.configPath(name)); err != nil {
+			message := strings.TrimSpace(string(out))
+			if len(message) > 512 {
+				message = message[:512]
+			}
+			return fmt.Errorf("cannot start invalid configuration: %s", message)
+		}
+	}
 	if _, err := m.command(ctx, "systemctl", args...); err != nil {
 		return fmt.Errorf("service %s failed: %w", action, err)
 	}

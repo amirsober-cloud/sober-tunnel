@@ -129,6 +129,13 @@ export function mimicView(ctx) {
     if(closed)return;clearTimeout(poll);job={id:result.id,name:current,node};try{sessionStorage.setItem('sober-camouflage-job',JSON.stringify(job));}catch{}get('mimic-test-output').textContent='';await pollJob();
   }));
   let xui=[];
+  const checkXray=document.createElement('button');checkXray.textContent='Check x-ui’s existing Xray on this Iran server';
+  get('mimic-xui').after(checkXray);
+  checkXray.addEventListener('click',()=>task(async()=>{
+    const result=await api.mimicAction({name:saved(),action:'xray-check'},node);
+    output(result.installed?[result.version,result.path,...result.checks.map(c=>`${c.ok?'✓':'✗'} ${c.name}: ${c.detail}`),result.note].join('\n'):result.note);
+    message(result.installed?'Existing Xray configuration check finished.':'Select the Iran server where x-ui and its Xray are installed.');
+  }));
   const xuiNode=document.createElement('select');xuiNode.id='mimic-xui-node';
   const xuiLabel=document.createElement('label');xuiLabel.textContent='Foreign node';xuiLabel.append(xuiNode);
   get('mimic-xui-output').before(xuiLabel);

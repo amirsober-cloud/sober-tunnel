@@ -179,6 +179,11 @@ func (m *Manager) StartDiagnostic(r ToolRequest) (tooling.Job, error) {
 	if err = os.MkdirAll(jobs, 0700); err != nil {
 		return job, err
 	}
+	unlock, err := lockJobLaunch(jobs)
+	if err != nil {
+		return job, err
+	}
+	defer unlock()
 	entries, _ := os.ReadDir(jobs)
 	for _, entry := range entries {
 		if !entry.IsDir() {

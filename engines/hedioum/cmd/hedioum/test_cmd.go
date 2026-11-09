@@ -129,7 +129,9 @@ func ensureTunTestRoute(gatewayIP, tunName string) (cleanup func(), ok bool) {
 	}
 	for attempt := 0; attempt < 20; attempt++ {
 		table := strconv.Itoa(52000 + rand.IntN(8000))
-		prio := table
+		// Linux consults the main table at priority 32766. A test rule must
+		// precede it or the main default route wins before reaching the TUN.
+		prio := strconv.Itoa(2000 + rand.IntN(3000))
 		routes, _ := exec.Command("ip", "route", "show", "table", table).Output()
 		rules, err := exec.Command("ip", "rule", "show").Output()
 		if err != nil || len(strings.TrimSpace(string(routes))) > 0 || strings.Contains(string(rules), prio+":") || strings.Contains(string(rules), "lookup "+table) {

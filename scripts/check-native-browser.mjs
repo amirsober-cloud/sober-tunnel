@@ -67,6 +67,13 @@ try {
   await evaluate("document.querySelector('#mimic-xui').click();true");
   await until("document.querySelector('#mimic-xui-output').textContent.includes('outbounds')");
   assert(await evaluate("JSON.parse(document.querySelector('#mimic-xui-output').textContent).outbounds[0].settings.servers[0].port===11081"),'x-ui browser export port mismatch');
+  if(process.env.SOBER_TEST_XRAY){
+    const button="[...document.querySelectorAll('.mimic-page button')].find(b=>b.textContent.includes('existing Xray'))";
+    await until(`!(${button}).disabled`);
+    await evaluate(`(${button}).click();true`);
+    await until("document.querySelector('#mimic-result').textContent.includes('Existing Xray configuration check finished')");
+    assert(await evaluate("document.querySelector('#mimic-output').textContent.includes('✓ legacy_outbound') && document.querySelector('#mimic-output').textContent.includes('✓ modern_outbound')"),'Existing x-ui Xray check failed in UI');
+  }
   await until("!document.querySelector('#mimic-run').disabled");
   await evaluate("document.querySelector('#mimic-run').click();true");
   await until("document.querySelector('#mimic-job').textContent.startsWith('Finished')");

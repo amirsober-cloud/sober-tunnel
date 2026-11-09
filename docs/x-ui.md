@@ -1,5 +1,9 @@
 # x-ui / 3x-ui through the local camouflage bridge
 
+x-ui and its existing Xray run on the **Iran server**. sober-tunnel supplies
+the local Iran SOCKS5 bridge and the tunnel to the foreign exit. Select the Iran
+server in the sober-tunnel panel when generating or checking x-ui settings.
+
 Create a foreign exit in **Tunnels → Add tunnel → Camouflage / Hedioum**.
 Select a Persona or explicit mimics and set ports that are free on that server.
 Use a real domain for certificate-based camouflage when available. Build the
@@ -21,6 +25,14 @@ core supports. Merge this fragment into x-ui's Xray configuration; it is not a
 replacement for the entire configuration. Replace the inbound-tag placeholder
 with the tags of the inbounds whose traffic should use this tunnel. Keep
 domestic/direct and other intentional exceptions ahead of that routing rule.
+
+Use **Check x-ui's existing Xray on this Iran server** to detect a normal host
+installation and run `xray run -test` on both exported SOCKS settings formats.
+This reads the existing core's version and validates private temporary fragments;
+it leaves the panel database, existing configuration and active Xray process
+alone. A container or custom installation may require running the same validation
+inside the container where that core is installed. Passing this configuration
+check establishes schema compatibility; use the connection test for live egress.
 
 The path is:
 

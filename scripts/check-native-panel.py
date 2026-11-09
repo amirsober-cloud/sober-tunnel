@@ -12,6 +12,8 @@ from pathlib import Path
 import re
 import secrets
 import signal
+import socket
+import struct
 import subprocess
 import sys
 import time
@@ -58,6 +60,10 @@ def systemctl():
 def main():
     if not Path("/.dockerenv").exists():
         raise SystemExit("This test must run in a disposable Docker container")
+    for command in (["update", "--file", "/tmp/no-such-helper"], ["uninstall", "--yes"]):
+        refused = subprocess.run(["/usr/local/bin/sober-tunnel-mimic", *command], text=True, capture_output=True)
+        assert refused.returncode != 0 and "combined installation" in refused.stdout + refused.stderr
+        assert Path("/usr/local/bin/sober-tunnel-mimic").exists(), "standalone maintenance removed the shared helper"
     script = str(Path(__file__).resolve())
     stub = Path("/usr/local/bin/systemctl")
     stub.write_text("#!/bin/sh\nexec python3 " + script + " --systemctl \"$@\"\n")
@@ -111,8 +117,10 @@ def main():
         api({"action": "save", "name": "test-exit", "config": exit_preview["config"]})
         pairing = api({"action": "prepare", "name": "test-exit", "command": "pairing",
                        "flags": {"public-ip": "127.0.0.1"}})["output"].strip()
-        hub_preview = api({"action": "prepare", "name": "test-hub", "command": "setup-iran",
-                           "flags": {"alias": "exit", "socks-port": "11081", "token": pairing}})
+        hub_flags = {"alias": "exit", "socks-port": "11081", "token": pairing}
+        if os.environ.get("SOBER_TEST_TUN") == "1":
+            hub_flags.update({"tun": "true", "dns": "true", "tun-name": "sobertest0", "tun-addr": "10.200.20.1/24"})
+        hub_preview = api({"action": "prepare", "name": "test-hub", "command": "setup-iran", "flags": hub_flags})
         api({"action": "save", "name": "test-hub", "config": hub_preview["config"]})
         for name in ("test-exit", "test-hub"):
             checks = api({"action": "preflight", "name": name})
@@ -144,6 +152,81 @@ def main():
                                         "127.0.0.1:11081", "https://example.com", "-o", "/dev/null",
                                         "-w", "%{http_code}"], text=True)
         assert code == "200", code
+        if os.environ.get("SOBER_TEST_TUN") == "1":
+            # Only this disposable container's net namespace is modified.
+            query_id = secrets.randbelow(65536)
+            question = b"\x07example\x03com\x00" + struct.pack("!HH", 1, 1)
+            query = struct.pack("!HHHHHH", query_id, 0x0100, 1, 0, 0, 0) + question
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as dns:
+                dns.settimeout(15)
+                dns.sendto(query, ("10.200.20.1", 53))
+                response = dns.recv(4096)
+            ident, flags, questions, answers, _, _ = struct.unpack("!HHHHHH", response[:12])
+            assert ident == query_id and flags & 15 == 0 and answers > 0, "TUN DNS query failed"
+
+            def skip_name(offset):
+                while response[offset]:
+                    if response[offset] & 0xC0 == 0xC0:
+                        return offset + 2
+                    offset += 1 + response[offset]
+                return offset + 1
+
+            offset = 12
+            for _ in range(questions):
+                offset = skip_name(offset) + 4
+            address = None
+            for _ in range(answers):
+                offset = skip_name(offset)
+                record_type, record_class, _, length = struct.unpack("!HHIH", response[offset:offset+10])
+                offset += 10
+                if record_type == record_class == 1 and length == 4:
+                    address = socket.inet_ntoa(response[offset:offset+length])
+                offset += length
+            assert address, "DNS forwarder returned no IPv4 address"
+            rules_before = subprocess.check_output(["ip", "rule", "show"])
+            subprocess.run(["ip", "route", "add", "default", "dev", "sobertest0", "table", "59877"], check=True)
+            try:
+                subprocess.run(["ip", "rule", "add", "from", "10.200.20.1", "lookup", "59877", "priority", "5987"], check=True)
+                code = subprocess.check_output(["curl", "-fsS", "--max-time", "30", "--interface", "10.200.20.1",
+                                                "--resolve", "example.com:443:" + address, "https://example.com",
+                                                "-o", "/dev/null", "-w", "%{http_code}"], text=True)
+                assert code == "200", "kernel TUN HTTPS failed"
+            finally:
+                subprocess.run(["ip", "rule", "del", "from", "10.200.20.1", "lookup", "59877", "priority", "5987"], check=False)
+                subprocess.run(["ip", "route", "del", "default", "dev", "sobertest0", "table", "59877"], check=False)
+            assert subprocess.check_output(["ip", "rule", "show"]) == rules_before, "test route was not cleaned up"
+            print("KERNEL_TUN_OK: real interface, remote DNS forwarder, source-routed HTTPS 200, routing rules restored")
+        xray = os.environ.get("SOBER_TEST_XRAY")
+        if xray:
+            # This is a test core inside the disposable container, never an
+            # installation/replacement of the user's x-ui core on the VPS.
+            xui_bin = Path("/usr/local/x-ui/bin")
+            xui_bin.mkdir(parents=True, exist_ok=True)
+            (xui_bin / "xray-linux-amd64").symlink_to(xray)
+            checked = api({"action": "xray-check", "name": "test-hub"})
+            assert checked["installed"] and all(c["ok"] for c in checked["checks"]), checked
+            for shape in ("legacy_outbound", "modern_outbound"):
+                outbound = integrations[0][shape]
+                rule = {**integrations[0]["routing_rule"], "inboundTag": ["xui-test"]}
+                xray_config = {"log": {"loglevel": "warning"},
+                               "inbounds": [{"tag": "xui-test", "listen": "127.0.0.1", "port": 15080,
+                                             "protocol": "http", "settings": {}}],
+                               "outbounds": [outbound], "routing": {"domainStrategy": "AsIs", "rules": [rule]}}
+                path = Path("/tmp/xray-" + shape + ".json")
+                path.write_text(json.dumps(xray_config))
+                subprocess.run([xray, "run", "-test", "-config=" + str(path)], check=True, capture_output=True)
+                with Path("/tmp/xray-test.log").open("wb") as log:
+                    core = subprocess.Popen([xray, "run", "-config=" + str(path)], stdout=log, stderr=log)
+                try:
+                    time.sleep(0.7)
+                    code = subprocess.check_output(["curl", "-fsS", "--max-time", "30", "--proxy",
+                                                    "http://127.0.0.1:15080", "https://example.com",
+                                                    "-o", "/dev/null", "-w", "%{http_code}"], text=True)
+                    assert code == "200", shape
+                finally:
+                    core.terminate()
+                    core.wait(timeout=10)
+                print("XRAY_CHAIN_OK:", shape, "Xray inbound -> local SOCKS -> camouflage -> HTTPS 200")
         if os.environ.get("SOBER_BROWSER_CHECK") == "1":
             subprocess.run(["node", str(Path(__file__).with_name("check-native-browser.mjs"))], check=True, timeout=180)
         print("NATIVE_PANEL_E2E_OK: pairing, save, preflight, real engines, async probe/speed, x-ui export, SOCKS HTTPS 200")

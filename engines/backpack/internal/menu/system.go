@@ -4,7 +4,9 @@
 package menu
 
 import (
+	"context"
 	"fmt"
+	"github.com/backpack/backpack/internal/mimicmgr"
 	"os"
 
 	"github.com/backpack/backpack/internal/app"
@@ -62,8 +64,12 @@ func uninstallMenu() {
 	tui.Clear()
 	tui.Title("Uninstall sober-tunnel")
 	fmt.Println()
-	tui.Warn("Removes Everything: Tunnels, Configs, The Binary And " + app.InstallDir + " (Backups Too).")
+	tui.Warn("Removes Everything: Tunnels, Configs, Both Binaries And " + app.InstallDir + " (Backups Too).")
 	if !tui.Confirm("Are You Sure", false) {
+		return
+	}
+	if err := mimicmgr.Default.RemoveOwnedUnits(context.Background()); err != nil {
+		tui.Warn(err.Error())
 		return
 	}
 
@@ -83,6 +89,9 @@ func uninstallMenu() {
 	os.RemoveAll(app.ConfigDir)
 	if err := os.Remove(app.BinPath); err != nil {
 		tui.Warn("Could Not Remove " + app.BinPath + " — Remove It By Hand.")
+	}
+	if err := os.Remove(app.NativeBinPath); err != nil && !os.IsNotExist(err) {
+		tui.Warn("Could Not Remove " + app.NativeBinPath + " — Remove It By Hand.")
 	}
 	if repo != "" && repo != "/" && repo != os.Getenv("HOME") {
 		if err := os.RemoveAll(repo); err != nil {

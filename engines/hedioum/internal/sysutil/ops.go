@@ -39,6 +39,10 @@ type GitHubRelease struct {
 // (e.g. filtered) it prints the manual path: download the binary and run
 // `sober-tunnel-mimic update --file /path`.
 func SelfUpdate(currentVersion string) {
+	if CombinedInstalled() {
+		color.Yellow("Use the sober-tunnel updater or source installer to update both executables together.")
+		return
+	}
 	color.Cyan("[*] Checking for updates...")
 
 	release, err := fetchLatestRelease()
@@ -205,6 +209,10 @@ func rollback() {
 
 // Uninstall safely purges the standalone camouflage components from the server.
 func Uninstall() {
+	if CombinedInstalled() {
+		color.Yellow("Use the sober-tunnel uninstaller to remove the combined installation.")
+		return
+	}
 	color.Yellow("[*] Stopping and disabling sober-tunnel-mimic service...")
 	exec.Command("systemctl", "stop", "sober-tunnel-mimic.service").Run()
 	exec.Command("systemctl", "disable", "sober-tunnel-mimic.service").Run()

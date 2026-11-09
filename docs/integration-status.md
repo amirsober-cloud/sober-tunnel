@@ -37,6 +37,12 @@ claim that every upstream feature has been validated on a production route.
   probe/test/speed/IP checks run as bounded asynchronous jobs on local or
   SSH-managed servers. x-ui exports use the saved per-node SOCKS listener.
   Optional SSH/firewall/BBR actions require separate explicit confirmations.
+- v0.1.5 integrates with x-ui's existing Xray on the selected Iran server. The
+  optional check queries its version and validates both SOCKS outbound schemas;
+  no x-ui database or active Xray configuration is changed. Native validation,
+  zero-jitter persistence, diagnostic process locking and TUN test routing were
+  corrected. Source install, archive update and rollback now keep both binaries
+  together; standalone helper maintenance cannot remove half the installation.
 
 ## Initial Windows verification
 
@@ -86,7 +92,7 @@ validation/systemd. They do not establish that systemd works on Windows.
   x-ui settings, and sent an HTTPS request through the local SOCKS bridge and
   camouflage tunnel to example.com (HTTP 200). The systemctl adapter in this
   container started real engine processes; it did not emulate tunnel traffic.
-  The installed VPS panel and monitor run v0.1.4; its HTTPS login returned 200.
+  The v0.1.4 VPS panel and monitor also passed HTTPS login before the v0.1.5 update.
 - Chromium exercised the real panel in the disposable container: Tunnels → Add
   tunnel → engine selection, foreign/hub form previews, pairing round-trip,
   parseable x-ui export and asynchronous Probe output all passed with zero
@@ -114,10 +120,15 @@ validation/systemd. They do not establish that systemd works on Windows.
 
 ## Remaining validation and product work
 
-- The complete upstream test suites and prolonged stress/throughput tests have
-  not been run. Passing the selected matrix is not a performance guarantee.
-- Kernel TUN/gateway routing, MTU on real routes, raw-socket carriers, and
-  geographically separate two-node operation still need live validation.
+- The generated reference was refreshed and legacy backup permissions corrected.
+  The long transport and management suites passed with suitable deadlines.
+  The live-link matrix needed a higher container PID allowance for its 24
+  concurrent tunnel pairs. Optional benchmarks and prolonged WAN soak/throughput
+  tests are distinct from these checks; see the dated validation report.
+- A real kernel TUN, DNS forwarding and source-routed HTTPS passed inside an
+  isolated container. Transparent LAN gateway routing, RouterOS, MTU on real
+  routes, raw-socket carriers, and geographically separate two-node operation
+  still need live validation. No Iran host was available during this work.
 - Signed binary releases, online updates and a fleet-wide upgrade rollout still
   need an actual sober-tunnel release and its own signing key. The repository
   and source installer are public; no binary release was published. Source
@@ -130,8 +141,8 @@ validation/systemd. They do not establish that systemd works on Windows.
 
 ```sh
 go test ./...
-(cd engines/hedioum && go test ./...)
-(cd engines/backpack && go mod tidy && go test ./...)
+(cd engines/hedioum && go test -p 1 -parallel 1 -timeout 20m ./...)
+(cd engines/backpack && go test -p 1 -parallel 1 -timeout 20m ./...)
 bash scripts/build.sh
 ```
 

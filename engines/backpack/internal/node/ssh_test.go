@@ -502,7 +502,7 @@ func TestMain(m *testing.M) { os.Exit(m.Run()) }
 // refused, the server was taken back out, and the operator was shown the far
 // machine's help text for a command that no longer exists, telling them to go
 // and run `sober-tunnel node setup` — the very flow this release removed.
-func TestAnOldersober-tunnelIsRecognisedAsOneToUpgrade(t *testing.T) {
+func TestAnOlderSoberTunnelIsRecognisedAsOneToUpgrade(t *testing.T) {
 	isolateStore(t)
 	srv := newFakeServer(t, "root", "hunter2")
 	srv.old = true

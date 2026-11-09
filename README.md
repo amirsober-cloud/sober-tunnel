@@ -61,9 +61,11 @@ contain `sober-tunnel`, named `sober-tunnel_linux_<arch>.tar.gz`.
 
 ## Validation status
 
-See [integration-status.md](docs/integration-status.md) for checks completed and
-the remaining build/runtime verification. Source inclusion is not a claim that
-all upstream modes have been exercised on a real route.
+The combined Linux build, selected backend and transport tests, 32 JavaScript
+tests, and a real camouflage HTTPS request have passed. An experimental HTTPS
+panel is running on the test VPS. See [integration-status.md](docs/integration-status.md)
+for the exact matrix and remaining validation; all upstream modes have not yet
+been exercised on a real route.
 
 ## Attribution and licenses
 

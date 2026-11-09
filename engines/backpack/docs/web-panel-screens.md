@@ -1,5 +1,16 @@
 # The web panel, screen by screen
 
+## sober-tunnel integration: Camouflage
+
+The `#/camouflage` page manages the camouflage engine from the same authenticated
+panel. Select this server or a registered SSH-managed server, edit the complete
+native JSON configuration, validate/save, start/stop/restart/delete the instance,
+and inspect its journal. Stop an active instance before editing. Credentials and
+service actions on this page require administrator access.
+
+This added page is part of sober-tunnel. The upstream verification stamps below
+refer to the preserved BackPack documentation.
+
 [Web panel](web-panel.md) explains what the panel is and how to turn it on.
 This page is the map: every screen it has, how you get there, what it shows, and
 which CLI menu entry does the same job. It exists because the panel is the part

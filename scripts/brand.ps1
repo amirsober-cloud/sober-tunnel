@@ -8,13 +8,13 @@ Get-ChildItem -LiteralPath $engineRoot -Recurse -File | Where-Object {
     $before = [IO.File]::ReadAllText($_.FullName)
     # Keep origin references, legal attribution, module identifiers and wire
     # protocol labels. Only presentation names change here.
-    $after = [regex]::Replace($before, 'Backpack|BackPack', {
+    $after = [regex]::Replace($before, '\b(?:Backpack|BackPack)\b', {
         param($match)
         $start = $before.LastIndexOf("`n", $match.Index)
         $end = $before.IndexOf("`n", $match.Index)
         if ($end -lt 0) { $end = $before.Length }
         $line = $before.Substring($start + 1, $end - $start - 1)
-        if ($line -match 'Based on BackPack|github\.com/AminMGMT/BackPack|X-Backpack-Fix') { return $match.Value }
+        if ($line -match 'Based on BackPack|github\.com/AminMGMT/BackPack|X-Backpack-Fix|upstreamDocStamp') { return $match.Value }
         return 'sober-tunnel'
     })
     $after = $after.Replace('/etc/backpack', '/etc/sober-tunnel').Replace('/run/backpack', '/run/sober-tunnel')

@@ -229,7 +229,7 @@ func backpackMissing(err error) error {
 	switch {
 	case strings.Contains(msg, "not found"), strings.Contains(msg, "No such file"):
 		return errNotInstalled("sober-tunnel is not installed on that server")
-	case outdatedsober-tunnel(msg):
+	case outdatedBackpack(msg):
 		return errNotInstalled("the sober-tunnel on that server is too old to be managed " +
 			"from this panel")
 	}
@@ -247,14 +247,14 @@ func errNotInstalled(what string) error {
 		what, ErrNeedsInstall)
 }
 
-// outdatedsober-tunnel recognises a binary that ran and did not understand.
+// outdatedBackpack recognises a binary that ran and did not understand.
 //
 // It is matched on the shape of the answer rather than on a version, because
 // the panel has no version to read: asking for one is itself a command the old
 // binary would reject. What every version before this one has in common is that
 // an unknown subcommand is refused by name, and that the whole of `backpack
 // node`'s help follows it.
-func outdatedsober-tunnel(msg string) bool {
+func outdatedBackpack(msg string) bool {
 	if strings.Contains(msg, `unknown command "exec"`) {
 		return true
 	}

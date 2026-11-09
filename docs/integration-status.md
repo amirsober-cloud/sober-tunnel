@@ -1,5 +1,10 @@
 # Integration status
 
+Updated 2026-11-09 after testing on an Ubuntu 24.04 x86_64 VPS with Go 1.26.10.
+The combined binary builds and the HTTPS panel and monitor are installed as
+experimental systemd services. This is a tested integration preview, not a
+claim that every upstream feature has been validated on a production route.
+
 ## Implemented
 
 - Complete upstream source snapshots included under engines/, preserving module
@@ -22,7 +27,7 @@
 - Online updater points at sober-tunnel and requires this distribution's own
   release signing key. Upstream keys cannot replace the combined executable.
 
-## Verification performed on this Windows workspace
+## Initial Windows verification
 
 Passed with the locally installed Go 1.26.5, with GOWORK=off:
 
@@ -36,21 +41,47 @@ The explicit-file checks exercise the actual added source and tests without
 changing either upstream module's required toolchain. Manager tests mock engine
 validation/systemd. They do not establish that systemd works on Windows.
 
-## Still unverified / release blockers
+## Linux verification completed
 
-- The combined binary and complete upstream suites have NOT passed a build in
-  this environment. Go 1.26.10 is required by the integrated modules. Automatic
-  toolchain retrieval stalled on goproxy.cn; proxy.golang.org and goproxy.io zip
-  requests returned 403; direct go.dev/dl and dl.google.com archive checks
-  returned 404. Do not treat subset test success as a successful combined build.
-- This host has no installed WSL distribution or Docker. Actual Linux systemd,
-  TUN/gateway/MTU behavior and two-node network tests remain required.
-- The panel's new view and full upstream JavaScript tests need a browser/Node
-  validation pass. Source is wired into the existing embedded asset system.
-- Combined dependency resolution and go.sum/go.work.sum updates need to finish
-  on a host with access to the required toolchain/modules.
+- The Go 1.26.10 archive was verified against the official download checksum.
+- Built the combined executable from the workspace with `go build -p 1
+  -trimpath -o build/sober-tunnel ./engines/backpack`.
+- Passed the integrated main-package test and the original sober-tunnel
+  workspace tests under Go 1.26.10.
+- Passed BackPack packages `internal/mimicmgr`, `internal/webui`,
+  `internal/node`, `internal/app`, and `internal/control`.
+- Passed `internal/tunnel/direct` and `internal/tunnel/l3` unit tests.
+- Passed the end-to-end tests `TestEveryTransportEstablishesAndCarriesData`,
+  `TestForwardedUDPWorksOnEveryTransport`, and `TestWrongTokenIsRejected`.
+  The matrix covers TCP, TCP mux, stealth, WS, WSS, WS mux, WSS mux, KCP,
+  QUIC and UDP. Tests ran inside a bounded Docker container, not on host ports.
+- Passed Hedioum packages `config`, `internal/mimic`, `internal/securestream`,
+  `internal/pool`, `internal/ingress`, `internal/egress`, `internal/tunproto`,
+  and `internal/tundev`; its public `engine` package also compiled.
+- Both sides of an actual camouflage tunnel ran using the combined executable
+  in an isolated container. An HTTPS request through its SOCKS5 -> TLS mimic ->
+  authenticated egress path returned HTTP 200 from example.com.
+- All 32 Node tests in `internal/webui/paneltest/*.test.js` passed.
+- The installed panel passed HTTPS login, admin-only camouflage API checks,
+  asset serving, and invalid-instance-name rejection. Both panel and monitor
+  services were active after installation.
+- A separate headless Edge profile logged into the real panel through a local
+  SSH forward, opened Camouflage, and observed no page error. Direct access
+  from the test desktop was unstable, so this does not prove browser access on
+  every external route. The panel certificate is currently self-signed.
+- Fixed the branding script changing Go identifiers, preserved upstream doc
+  verification stamps, documented the new route, and pinned source/script LF
+  line endings with `.gitattributes` after cross-platform test failures.
+
+## Remaining validation and product work
+
+- The complete upstream test suites and prolonged stress/throughput tests have
+  not been run. Passing the selected matrix is not a performance guarantee.
+- Kernel TUN/gateway routing, MTU on real routes, raw-socket carriers, and
+  geographically separate two-node operation still need live validation.
 - Publish/install/update/fleet rollout need an actual sober-tunnel release and
-  its own signing key. No release was published and no server was deployed.
+  its own signing key. No public release was published. Source-code upload and
+  installing this experimental VPS do not establish an upgrade channel.
 - Advanced Hedioum settings are currently exposed through the complete JSON
   editor, rather than separate guided forms for every individual field. Pool
   events are available through its journal; they are not yet merged into the

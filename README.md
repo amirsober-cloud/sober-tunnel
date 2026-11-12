@@ -93,3 +93,14 @@ HTTPS through Xray → local SOCKS → camouflage, and through a real kernel TUN
 with its DNS forwarder. See the [v0.1.5 validation report](docs/validation-2026-11-10.md)
 and [integration status](docs/integration-status.md) for the exact evidence and
 remaining live-route checks. No actual Iran server was available for those checks.
+
+## Terminal camouflage management
+
+Run `sudo sober-tunnel` and choose **11) Camouflage**, or **Manage → Camouflage / Hedioum**.
+Set up the foreign exit first, export its pairing token, then set up the Iran hub.
+The terminal menu uses the same named instances and systemd services as the web
+panel. It exposes the native setup/edit flags (including mimic/persona settings),
+node management, JSON import/view, start/stop/restart/delete, logs, pairing and
+native probe/connection/speed/IP diagnostics. Preview validates settings before
+saving; saving does not start a tunnel. Stop an instance before saving edits.
+JSON previews and pairing output contain credentials; use a private terminal.

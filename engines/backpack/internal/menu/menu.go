@@ -88,6 +88,8 @@ func Run() {
 			updateMenu()
 		case "9":
 			uninstallMenu()
+		case "11":
+			camouflageMenu()
 		case "10":
 			tui.Info("Goodbye!")
 			return
@@ -129,6 +131,7 @@ func printMenu() {
 	}
 	menuItem(8, "Update", updateDesc)
 	menuItem(9, "Uninstall", "remove everything")
+	menuItem(11, "Camouflage", "Hedioum setup and instance management")
 	menuItem(10, "Exit", "")
 	fmt.Println()
 }

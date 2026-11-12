@@ -26,6 +26,7 @@ func manageMenu() {
 			{Title: "Auto Refresh", Desc: "restart all every N hours — " + refreshLabel()},
 			{Title: "Built-in Proxy", Desc: "SOCKS5/HTTP backend — " + proxyLabel()},
 			{Title: "File Locations", Desc: "configs, services, backups"},
+			{Title: "Camouflage / Hedioum", Desc: "native settings, services and diagnostics"},
 		})
 
 		switch idx {
@@ -53,6 +54,8 @@ func manageMenu() {
 			autoRefreshMenu()
 		case 10:
 			builtinProxyMenu()
+		case 12:
+			camouflageMenu()
 		case 11:
 			manage.FileLocations()
 		default:

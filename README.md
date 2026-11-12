@@ -104,3 +104,10 @@ node management, JSON import/view, start/stop/restart/delete, logs, pairing and
 native probe/connection/speed/IP diagnostics. Preview validates settings before
 saving; saving does not start a tunnel. Stop an instance before saving edits.
 JSON previews and pairing output contain credentials; use a private terminal.
+## Release installer
+
+The one-line installer defaults to the published `v0.2.1-rc.1` bundle, verifies
+its SHA256 checksum and installs both executables without downloading Go.
+This prerelease currently provides the Linux amd64 archive only. `SOBER_VERSION`
+selects another published tag. Use `SOBER_INSTALL_MODE=source` to explicitly
+compile the checkout; source builds require the Go version specified in go.work.

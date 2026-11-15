@@ -34,7 +34,7 @@ container; the installed VPS panel uses real systemd.
 
 | Check | Observed result |
 | --- | --- |
-| Original Hedioum package suite | Passed, including config, CLI, pool, mimics, securestream, DNS, TUN helpers and pairing |
+| Original Camouflage package suite | Passed, including config, CLI, pool, mimics, securestream, DNS, TUN helpers and pairing |
 | BackPack package suite | Passed across the baseline and corrected-package reruns; generated config reference refreshed and legacy-backup private modes repaired |
 | Management/live setup-link suite | Passed in 773 seconds; its 24 concurrent tunnel pairs needed a higher container PID allowance than the initial 256 limit |
 | Paired executable installation | Passed missing-helper, version-mismatch and injected main-rename failure cases; rejected bundles left the installed pair intact |

@@ -2,10 +2,10 @@ module github.com/backpack/backpack
 
 go 1.26.10
 
-replace github.com/hedioum/Hedioum-Pool-Tunnel => ../hedioum
+replace github.com/amirsober-cloud/sober-tunnel/engines/camouflage => ../camouflage
 
 require (
-	github.com/hedioum/Hedioum-Pool-Tunnel v0.0.0
+	github.com/amirsober-cloud/sober-tunnel/engines/camouflage v0.0.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/cilium/ebpf v0.22.0
 	github.com/flynn/noise v1.1.0

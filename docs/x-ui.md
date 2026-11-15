@@ -4,7 +4,7 @@ x-ui and its existing Xray run on the **Iran server**. sober-tunnel supplies
 the local Iran SOCKS5 bridge and the tunnel to the foreign exit. Select the Iran
 server in the sober-tunnel panel when generating or checking x-ui settings.
 
-Create a foreign exit in **Tunnels → Add tunnel → Camouflage / Hedioum**.
+Create a foreign exit in **Tunnels → Add tunnel → Camouflage**.
 Select a Persona or explicit mimics and set ports that are free on that server.
 Use a real domain for certificate-based camouflage when available. Build the
 preview, save, run preflight checks and start it. Export its pairing token using
@@ -58,6 +58,6 @@ management panel. Native diagnostic jobs have a five-minute deadline, bounded
 output and one active job per server. The panel shows the raw individual
 checks; completion alone does not mean every endpoint passed.
 
-Sources: [original camouflage and DNS behavior](https://github.com/hedioum/Hedioum-Pool-Tunnel/blob/main/docs/MIMICS.md),
+Sources: [original camouflage and DNS behavior](https://github.com/amirsober-cloud/sober-tunnel/blob/main/engines/camouflage/docs/MIMICS.md),
 [3x-ui SOCKS outbound schema](https://github.com/MHSanaei/3x-ui/blob/main/frontend/src/schemas/protocols/outbound/socks.ts),
 [current Xray SOCKS outbound](https://xtls.github.io/en/config/outbounds/socks.html).

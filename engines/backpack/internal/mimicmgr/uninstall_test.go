@@ -9,7 +9,7 @@ import (
 
 func TestUninstallOnlyRemovesOwnedCamouflageUnits(t *testing.T) {
 	m := testManager(t)
-	for _, name := range []string{"sober-mimic-hub.service", "sober-tunnel-mimic.service", "x-ui.service", "hedioum.service", "sober-mimic--invalid.service"} {
+	for _, name := range []string{"sober-mimic-hub.service", "sober-tunnel-mimic.service", "x-ui.service", "camouflage-independent.service", "sober-mimic--invalid.service"} {
 		if err := os.WriteFile(filepath.Join(m.UnitDir, name), []byte("unit"), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -23,7 +23,7 @@ func TestUninstallOnlyRemovesOwnedCamouflageUnits(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(m.UnitDir, "sober-tunnel-mimic.service")); !os.IsNotExist(err) {
 		t.Fatal("standalone native unit still present")
 	}
-	for _, name := range []string{"x-ui.service", "hedioum.service", "sober-mimic--invalid.service"} {
+	for _, name := range []string{"x-ui.service", "camouflage-independent.service", "sober-mimic--invalid.service"} {
 		if _, err := os.Stat(filepath.Join(m.UnitDir, name)); err != nil {
 			t.Fatalf("unrelated unit %s was changed", name)
 		}

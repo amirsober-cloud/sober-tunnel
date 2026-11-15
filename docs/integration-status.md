@@ -10,9 +10,9 @@ claim that every upstream feature has been validated on a production route.
 - Complete upstream source snapshots included under engines/, preserving module
   identities, source licenses, notices and attribution.
 - One combined executable entrypoint (engines/backpack/main.go) linking both
-  engine families through Hedioum's new public engine package.
+  engine families through Camouflage's new public engine package.
 - One panel, with the existing transport/management screens and a Camouflage
-  page for isolated native JSON configurations. No second Hedioum panel starts.
+  page for isolated native JSON configurations. No second Camouflage panel starts.
 - Local and SSH-fleet camouflage operations: list, read, validate/save,
   start/stop/restart/delete and bounded journal logs. The endpoint requires admin
   scope because it returns credentials and can enable gateway routing.
@@ -51,7 +51,7 @@ Passed with the locally installed Go 1.26.5, with GOWORK=off:
 ```powershell
 go test ./...
 go test ./engines/backpack/internal/mimicmgr/manager.go ./engines/backpack/internal/mimicmgr/manager_test.go
-go test ./engines/hedioum/config/config.go ./engines/hedioum/config/config_test.go ./engines/hedioum/config/sober_test.go
+go test ./engines/camouflage/config/config.go ./engines/camouflage/config/config_test.go ./engines/camouflage/config/sober_test.go
 ```
 
 The explicit-file checks exercise the actual added source and tests without
@@ -72,7 +72,7 @@ validation/systemd. They do not establish that systemd works on Windows.
   `TestForwardedUDPWorksOnEveryTransport`, and `TestWrongTokenIsRejected`.
   The matrix covers TCP, TCP mux, stealth, WS, WSS, WS mux, WSS mux, KCP,
   QUIC and UDP. Tests ran inside a bounded Docker container, not on host ports.
-- Passed Hedioum packages `config`, `internal/mimic`, `internal/securestream`,
+- Passed Camouflage packages `config`, `internal/mimic`, `internal/securestream`,
   `internal/pool`, `internal/ingress`, `internal/egress`, `internal/tunproto`,
   and `internal/tundev`; its public `engine` package also compiled.
 - Both sides of an actual camouflage tunnel ran using the combined executable
@@ -144,7 +144,7 @@ validation/systemd. They do not establish that systemd works on Windows.
 
 ```sh
 go test ./...
-(cd engines/hedioum && go test -p 1 -parallel 1 -timeout 20m ./...)
+(cd engines/camouflage && go test -p 1 -parallel 1 -timeout 20m ./...)
 (cd engines/backpack && go test -p 1 -parallel 1 -timeout 20m ./...)
 bash scripts/build.sh
 ```

@@ -650,7 +650,7 @@
                          "name":  "tun-name",
                          "type":  "string",
                          "default":  "",
-                         "help":  "TUN interface name (default: auto, e.g. hedioum0)"
+                         "help":  "TUN interface name (default: auto, e.g. camouflage0)"
                      },
                      {
                          "name":  "tun-addr",
@@ -916,7 +916,7 @@
                            "name":  "tun-name",
                            "type":  "string",
                            "default":  "",
-                           "help":  "TUN interface name (default: auto, e.g. hedioum0)"
+                           "help":  "TUN interface name (default: auto, e.g. camouflage0)"
                        },
                        {
                            "name":  "tun-addr",

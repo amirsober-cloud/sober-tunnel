@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hedioum/Hedioum-Pool-Tunnel/config"
-	"github.com/hedioum/Hedioum-Pool-Tunnel/tooling"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/tooling"
 )
 
 type Check struct {

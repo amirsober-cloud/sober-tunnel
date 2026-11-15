@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $catalog = [ordered]@{}
 $allowed = @('setup-foreign','add-node','edit-foreign','edit-node','remove-node','probe','test','speedtest','pairing')
-foreach ($file in Get-ChildItem "$repoRoot/engines/hedioum/cmd/hedioum" -Filter '*.go') {
+foreach ($file in Get-ChildItem "$repoRoot/engines/camouflage/cmd/camouflage" -Filter '*.go') {
     $text = [IO.File]::ReadAllText($file.FullName)
     foreach ($part in [regex]::Split($text, '(?m)^func ')) {
         $cmd = [regex]::Match($part, 'flag.NewFlagSet\("([^"]+)"')

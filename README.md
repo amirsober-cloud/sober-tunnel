@@ -5,13 +5,13 @@ A unified management panel and executable for multiple tunnel engines.
 - Reverse/direct port forwarding, TCP, WebSocket/TLS, KCP, QUIC, UDP,
   transport fallback, and a separate layer-3 engine from BackPack.
 - Protocol camouflage, authenticated encrypted connections, dynamic pools,
-  draining, SOCKS5 TCP/UDP, TUN, DNS and gateway mode from Hedioum.
+  draining, SOCKS5 TCP/UDP, TUN, DNS and gateway mode from Camouflage.
 - One web panel: the existing transport/management screens plus **Camouflage**
   for local or SSH-managed remote instances. The complete native JSON remains
   editable, including advanced fields. Both ends must run this combined build
   to manage camouflage through the fleet API.
 
-The integrated entrypoint lives in `engines/backpack`; `engines/hedioum/engine`
+The integrated entrypoint lives in `engines/backpack`; `engines/camouflage/engine`
 exposes the second core to the same binary. Each tunnel runs in its own process.
 The original `cmd/client` and `cmd/server` are retained as the earlier prototype;
 they are not the entrypoint for the integrated product.
@@ -31,7 +31,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/amirsober-cloud/sober-tunnel
 بعد از نصب، دستور `sober-tunnel` آدرس پنل و مشخصات ورود را نشان می‌دهد.
 HTTPS اولیه گواهی خودامضا دارد. این نسخه آزمایشی است.
 
-موتور camouflage از بخش **Tunnels → Add tunnel → Camouflage / Hedioum** ساخته
+موتور camouflage از بخش **Tunnels → Add tunnel → Camouflage** ساخته
 و مدیریت می‌شود. فرم‌های اصلی، Persona، توکن pairing، تست اتصال و سرعت و
 تنظیمات آمادهٔ x-ui در پنل قرار دارند. ابزار native هم با نام
 `sober-tunnel-mimic` نصب می‌شود؛ اجرای تونل‌ها از باینری یکپارچهٔ `sober-tunnel` است.
@@ -53,6 +53,16 @@ On Windows, cross-build the Linux binary:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1
 ```
 
+To create the Linux release archive and `build/SHA256SUMS` on Windows:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1 -Architecture amd64
+```
+
+Use `-Architecture arm64` for ARM servers. Each archive includes both executables
+and the distribution licenses. Native systemd and network integration tests must
+run on Linux; cross-building on Windows does not execute those checks.
+
 Installation is an explicit step on the target Linux host; no upstream installer
 is invoked. The CLI shows the generated panel login and secret URL. Normal
 tunnels use the existing Tunnels screen. The Camouflage screen supports server
@@ -73,7 +83,7 @@ Configs live under `/etc/sober-tunnel`; camouflage JSON and per-instance TLS
 caches live under its `mimic/` directory. Backups include that directory.
 Restoring a backup registers camouflage services but leaves starting them as an
 explicit panel action. New installations do not migrate or alter existing
-BackPack/Hedioum deployments, SSH settings, or firewall rules automatically.
+BackPack/Camouflage deployments, SSH settings, or firewall rules automatically.
 
 Source builds have no online release signing key. The online updater targets
 this repository and refuses installation until a sober-tunnel key is embedded
@@ -96,7 +106,7 @@ remaining live-route checks. No actual Iran server was available for those check
 
 ## Terminal camouflage management
 
-Run `sudo sober-tunnel` and choose **11) Camouflage**, or **Manage → Camouflage / Hedioum**.
+Run `sudo sober-tunnel` and choose **11) Camouflage**, or **Manage → Camouflage**.
 Set up the foreign exit first, export its pairing token, then set up the Iran hub.
 The terminal menu uses the same named instances and systemd services as the web
 panel. It exposes the native setup/edit flags (including mimic/persona settings),

@@ -1,18 +1,18 @@
-# Hedioum / BackPack integration review
+# Camouflage / BackPack integration review
 
 Reviewed on 2026-11-09. This is a source review and proposed design; neither
 upstream project was built or run during this review.
 
 ## Source snapshots
 
-- Hedioum: `b0f237f45adff84492a894cc19097e51121c72c8`
+- Camouflage: `b0f237f45adff84492a894cc19097e51121c72c8`
   https://github.com/hedioum/Hedioum-Pool-Tunnel/tree/b0f237f45adff84492a894cc19097e51121c72c8
 - BackPack: `9d58f8449ac04705b2b47f4869dc9f6db0e034af`
   https://github.com/AminMGMT/BackPack/tree/9d58f8449ac04705b2b47f4869dc9f6db0e034af
 
 ## Findings
 
-Hedioum's direct path is Iran hub -> foreign egress. Its mimic handshake
+Camouflage's direct path is Iran hub -> foreign egress. Its mimic handshake
 returns an authenticated encrypted net.Conn, then Yamux carries streams.
 The pool selects the active connection with the fewest streams; bandwidth
 measurements drive scaling and randomized rate limits. Connections drain
@@ -35,12 +35,12 @@ presence does not establish throughput, resilience, or effectiveness against DPI
    They cannot be interchanged or nested without an explicit design. Choose
    one mux for a new combined protocol, with adapters only for deliberate
    compatibility modes.
-2. Hedioum's ServerMimic.Accept and ClientMimic.Dial return net.Conn, making
+2. Camouflage's ServerMimic.Accept and ClientMimic.Dial return net.Conn, making
    the authenticated connection a useful integration boundary. Keep the
    mimic's authentication, replay checks, and decoy handling together.
-3. Hedioum's pool is coupled to *yamux.Session. Port its policies behind a
+3. Camouflage's pool is coupled to *yamux.Session. Port its policies behind a
    session interface; do not copy it unchanged onto a smux connection.
-4. Hedioum's egress rejects loopback/private destinations. BackPack commonly
+4. Camouflage's egress rejects loopback/private destinations. BackPack commonly
    forwards to a service on 127.0.0.1. Use explicit per-peer target mappings
    or an allowlist for port forwarding, while retaining public-only egress
    for general proxy mode. Do not globally remove the destination checks.
@@ -56,14 +56,14 @@ presence does not establish throughput, resilience, or effectiveness against DPI
 8. Both projects use internal packages and different module paths. A direct
    external import of those packages is not supported by Go's internal rules.
    Vendoring/porting or upstream extraction into public packages is needed.
-9. Hedioum requests Go 1.26.10; BackPack requests Go 1.26.9. The local project
+9. Camouflage requests Go 1.26.10; BackPack requests Go 1.26.9. The local project
    currently declares 1.26.5. Dependencies and toolchain need a coordinated
    build check; do not mechanically concatenate the go.mod files.
 
 ## Proposed implementation
 
 For the combined feature set, use BackPack's engine/management boundaries as
-the starting design and add Hedioum's authenticated camouflage layer and pool
+the starting design and add Camouflage's authenticated camouflage layer and pool
 policies. Preserve sober-tunnel as the product name and integration workspace.
 The user has not yet selected whether the full management UI is in scope.
 
@@ -100,7 +100,7 @@ not a claim of compatibility with either unmodified upstream binary.
 
 ## Source notices
 
-Hedioum supplies GPL-3.0; BackPack supplies AGPL-3.0 plus NOTICE and trademark
+Camouflage supplies GPL-3.0; BackPack supplies AGPL-3.0 plus NOTICE and trademark
 terms. Before incorporating upstream code, preserve the source licenses,
 copyright notices, and applicable attribution. BackPack's NOTICE specifies:
 
@@ -113,7 +113,7 @@ publication. This review does not change the local project's LICENSE.
 
 ## Files inspected
 
-Hedioum: go.mod, LICENSE, internal/mimic/mimic.go,
+Camouflage: go.mod, LICENSE, internal/mimic/mimic.go,
 internal/securestream/securestream.go, internal/pool/session.go,
 internal/pool/manager.go, internal/ingress/dial.go,
 internal/egress/server.go, internal/tunproto/tunproto.go.

@@ -15,11 +15,11 @@ import (
 func camouflageMenu() {
 	for {
 		tui.Clear()
-		choice := tui.ChooseOpt("Camouflage / Hedioum", []tui.Option{
+		choice := tui.ChooseOpt("Camouflage", []tui.Option{
 			{Title: "Setup Foreign", Desc: "exit server, native mimic and persona settings"},
 			{Title: "Setup Iran", Desc: "hub, foreign endpoints, SOCKS and TUN"},
 			{Title: "Manage Instances", Desc: "edit, start, stop, restart, logs and pairing"},
-			{Title: "Import Native JSON", Desc: "validate and register a Hedioum configuration"},
+			{Title: "Import Native JSON", Desc: "validate and register a Camouflage configuration"},
 		})
 		switch choice {
 		case 0, 1:
@@ -91,7 +91,7 @@ func camouflageInstances() {
 func camouflageInstance(item mimicmgr.Instance) {
 	for {
 		choice := tui.ChooseOpt("Camouflage: "+item.Name, []tui.Option{
-			{Title: "Edit Native Settings", Desc: "same setup/edit flags as Hedioum; stop before saving"},
+			{Title: "Edit Native Settings", Desc: "same setup/edit flags as Camouflage; stop before saving"},
 			{Title: "Add Node", Desc: "Iran hub only"},
 			{Title: "Edit Node", Desc: "Iran hub only"},
 			{Title: "Remove Node", Desc: "Iran hub only"},

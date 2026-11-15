@@ -7,14 +7,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/hedioum/Hedioum-Pool-Tunnel/config"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
 )
 
 // Uses the real compiled native tools when the Linux release artifacts exist.
 func TestNativeSetupPairingAndEditingWithoutHostSideEffects(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("native integration requires Linux release executables and shell scripts")
+	}
 	binary, _ := filepath.Abs("../../../../build/sober-tunnel")
 	if !fileExists(binary) || !fileExists(filepath.Join(filepath.Dir(binary), "sober-tunnel-mimic")) {
 		t.Skip("build both Linux artifacts first")

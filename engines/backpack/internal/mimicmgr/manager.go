@@ -1,4 +1,4 @@
-// Package mimicmgr manages isolated Hedioum engines beneath the sober-tunnel
+// Package mimicmgr manages isolated Camouflage engines beneath the sober-tunnel
 // control plane. It never changes SSH, firewall rules, or the host default route.
 package mimicmgr
 

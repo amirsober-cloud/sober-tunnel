@@ -1,16 +1,17 @@
 # Integrated engines
 
 Both source trees are included so a checkout contains the complete product.
-Their Go module paths remain intact for internal imports and provenance.
+The Camouflage module uses this distribution's repository namespace; upstream
+source commits and attribution remain recorded below.
 
 | Source | Pinned commit | Original license |
 |---|---|---|
 | [BackPack](https://github.com/AminMGMT/BackPack) | 9d58f8449ac04705b2b47f4869dc9f6db0e034af | AGPL-3.0 + NOTICE |
 | [Hedioum](https://github.com/hedioum/Hedioum-Pool-Tunnel) | b0f237f45adff84492a894cc19097e51121c72c8 | GPL-3.0 |
 
-Local changes expose Hedioum as a public Go engine package and compile it into
+Local changes expose Camouflage as a public Go engine package and compile it into
 the main sober-tunnel binary. BackPack provides the existing transport engines
-and management panel; a new admin-only Camouflage section manages Hedioum
+and management panel; a new admin-only Camouflage section manages Camouflage
 instances. There is one binary and one panel, with one process per instance.
 Wire protocols remain separate and unchanged; this is a shared control plane,
 not an invented claim of interoperability between their mux protocols.

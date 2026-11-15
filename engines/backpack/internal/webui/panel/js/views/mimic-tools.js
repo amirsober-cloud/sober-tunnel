@@ -21,7 +21,7 @@ export function mimicView(ctx) {
   const host=$('#view');
   ctx.setTeardown(()=>{closed=true; clearTimeout(poll);});
   host.innerHTML=`<section class="mimic-page">
-    <header><a href="#/tunnels">← Tunnels</a><h1>Camouflage / Hedioum</h1><p>Create both ends, pair them, then connect x-ui to the hub’s local SOCKS5 bridge.</p></header>
+    <header><a href="#/tunnels">← Tunnels</a><h1>Camouflage</h1><p>Create both ends, pair them, then connect x-ui to the hub’s local SOCKS5 bridge.</p></header>
     <label>Server<select id="mimic-node"><option value="">This server</option></select></label>
     <div class="mimic-layout"><section><h2>Camouflage tunnels</h2><div id="mimic-list">Loading…</div><button id="mimic-refresh">Refresh</button><button id="mimic-new">New tunnel</button><a href="#/servers">Manage servers</a></section>
     <section><h2 id="mimic-heading">New tunnel</h2><label>Instance name<input id="mimic-name" maxlength="48" placeholder="foreign-main" autocomplete="off"></label>

@@ -23,7 +23,7 @@ export function addView(ctx) {
     pick: '.dlg',
     bind: async (root, close) => {
       const engineChoice=document.createElement('div');engineChoice.className='mimic-engine-choice';
-      engineChoice.innerHTML='<b>Choose tunnel engine</b><p>Use the transport form below, or create a Camouflage / Hedioum tunnel with Persona, pairing and a local x-ui SOCKS5 bridge.</p><button type="button">Camouflage / Hedioum</button>';
+      engineChoice.innerHTML='<b>Choose tunnel engine</b><p>Use the transport form below, or create a Camouflage tunnel with Persona, pairing and a local x-ui SOCKS5 bridge.</p><button type="button">Camouflage</button>';
       engineChoice.querySelector('button').addEventListener('click',()=>{go('/tunnels/camouflage');});root.prepend(engineChoice);
       dialogSubtitle(root, store.get().stats, 'this server’s end — the other is built from its setup link');
       let opts = { families: [], presets: [] };

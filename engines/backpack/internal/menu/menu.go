@@ -131,7 +131,7 @@ func printMenu() {
 	}
 	menuItem(8, "Update", updateDesc)
 	menuItem(9, "Uninstall", "remove everything")
-	menuItem(11, "Camouflage", "Hedioum setup and instance management")
+	menuItem(11, "Camouflage", "Camouflage setup and instance management")
 	menuItem(10, "Exit", "")
 	fmt.Println()
 }

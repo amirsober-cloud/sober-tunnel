@@ -13,7 +13,7 @@ install -d -m 0755 /usr/local/bin
 install -m 0644 "$root/NOTICE" "$root/README.md" /opt/sober-tunnel/
 install -d -m 0755 /opt/sober-tunnel/licenses
 install -m 0644 "$root/engines/backpack/LICENSE" /opt/sober-tunnel/licenses/BackPack-AGPL-3.0.txt
-install -m 0644 "$root/engines/hedioum/LICENSE" /opt/sober-tunnel/licenses/Hedioum-GPL-3.0.txt
+install -m 0644 "$root/engines/camouflage/LICENSE" /opt/sober-tunnel/licenses/Camouflage-GPL-3.0.txt
 if [[ "${SOBER_ENGINE_ONLY:-0}" == 1 ]]; then
   echo 'Installed sober-tunnel engines. Management stays on the central panel.'
   exit 0

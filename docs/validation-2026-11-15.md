@@ -41,3 +41,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1 -Archite
 For Linux execution checks, follow the commands in `integration-status.md` on a
 disposable Linux host. The installer explicitly sets both extracted executables
 to mode 0755, including archives created on Windows.
+
+## Subsequent Camouflage release validation
+
+GitHub Actions run [43736668165](https://github.com/amirsober-cloud/sober-tunnel/actions/runs/43736668165)
+completed successfully on Linux for the pinned `v0.2.1-rc.2` source. It built both
+executables and the distribution archive, passed root module tests and the
+camouflage manager, securestream, pool, persona and logging suites, verified
+SHA256SUMS and published the prerelease assets. The manager suite includes the
+real native setup/pairing/editing test when both Linux executables exist.
+This does not establish a live systemd deployment or a geographically separate
+two-server route. The Windows limitations above describe the earlier local run.

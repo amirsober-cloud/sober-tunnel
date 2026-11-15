@@ -9,10 +9,12 @@ derivation constants are retained for provenance and peer compatibility.
 - The one-line installer selects this release and verifies its SHA256 checksum.
 - Adds Windows release packaging and corrects platform-specific test handling.
 
-Validation: root module tests, camouflage manager, securestream, pool, persona
-and logging tests passed on Windows. Both Linux executables built; terminal,
-web panel, native CLI and TUN test executables compiled for Linux. Linux runtime,
-systemd and real two-server validation were not repeated for this release.
+Validation: both Linux executables built on GitHub Actions. Root module tests,
+camouflage manager (including native setup/pairing/editing), securestream, pool,
+persona and logging tests passed on Linux. Corresponding portable tests also
+passed on Windows; terminal, web panel, native CLI and TUN test executables
+compiled for Linux. Live systemd and real two-server route validation were not
+repeated for this release.
 
 This is an unsigned release candidate. The signed online updater remains
 disabled. Install or update manually on both Linux servers as root:

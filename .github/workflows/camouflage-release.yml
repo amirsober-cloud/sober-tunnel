@@ -1,0 +1,70 @@
+name: Build Camouflage release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing draft release candidate tag
+        required: true
+        default: v0.2.1-rc.2
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Resolve draft release source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          python3 - <<'PY'
+          import json, os, re
+          with open(os.environ['RUNNER_TEMP'] + '/releases.json') as f:
+              release = next(r for r in json.load(f) if r['tag_name'] == os.environ['RELEASE_VERSION'])
+          assert release['draft'], 'Refusing to replace public release artifacts'
+          commit = release['target_commitish']
+          assert re.fullmatch(r'[0-9a-f]{40}', commit), 'Draft must pin a full source commit'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('commit=' + commit + '\n')
+          PY
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            go.sum
+            go.work.sum
+            engines/backpack/go.sum
+            engines/camouflage/go.sum
+
+      - name: Build both Linux executables and archive
+        run: bash scripts/package.sh
+
+      - name: Run Linux engine and native pairing checks
+        run: |
+          go test -timeout 3m ./...
+          go test -timeout 3m ./engines/backpack/internal/mimicmgr ./engines/camouflage/internal/securestream ./engines/camouflage/internal/pool ./engines/camouflage/internal/persona ./engines/camouflage/internal/logging
+
+      - name: Upload checked assets and publish prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = true
+          (cd build && sha256sum -c SHA256SUMS)
+          gh release upload "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" build/sober-tunnel_linux_amd64.tar.gz build/SHA256SUMS --clobber
+          gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false

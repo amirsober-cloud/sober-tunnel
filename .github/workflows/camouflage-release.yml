@@ -6,7 +6,7 @@ on:
       version:
         description: Existing draft release tag
         required: true
-        default: v0.2.1
+        default: v0.2.2
         type: string
 
 permissions:
@@ -52,6 +52,9 @@ jobs:
             engines/backpack/go.sum
             engines/camouflage/go.sum
 
+      - name: Load pinned release public key
+        run: echo "RELEASE_PUBLIC_KEY=$(cat docs/release-public-key.txt)" >> "$GITHUB_ENV"
+
       - name: Build both Linux executables and archive
         run: bash scripts/package.sh
 
@@ -61,6 +64,16 @@ jobs:
           go vet ./...
           go test -race -timeout 3m ./internal/connection ./internal/forward ./internal/mux
           go test -timeout 3m ./engines/backpack/internal/mimicmgr ./engines/camouflage/config ./engines/camouflage/internal/securestream ./engines/camouflage/internal/pool ./engines/camouflage/internal/persona ./engines/camouflage/internal/logging
+          go test -timeout 3m ./engines/backpack/internal/manage -run 'Test(AReleaseSignatureIsGoodForItsOwnTagOnly|ASignatureOverTheChecksumsIsCheckedAgainstThePinnedKey|ABuildWithNoPinnedKeyStillInstalls|AMalformedPinnedKeyRefusesRatherThanSkips|TheSigningToolAndTheVerifierAgree|UnsignedUpdateHasActionableBootstrapError|HashFor.*|VerifyChecksumAcceptsAndRejects)$'
+          go test -timeout 3m ./engines/backpack/internal/menu -run 'Test(AnUpdateReopensTheMenuOnTheNewBinary|TheRelayOfferSaysSoWhenThereIsNoWayOut)$'
+
+      - name: Sign release checksums
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          test -n "$RELEASE_SIGNING_KEY"
+          go run ./engines/backpack/tools/signsums build/SHA256SUMS "$RELEASE_VERSION"
+          test -s build/SHA256SUMS.sig
 
       - name: Upload checked assets and publish release
         shell: bash
@@ -68,9 +81,14 @@ jobs:
           set -euo pipefail
           test "$(gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = true
           (cd build && sha256sum -c SHA256SUMS)
-          gh release upload "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" build/sober-tunnel_linux_amd64.tar.gz build/SHA256SUMS --clobber
+          gh release upload "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" build/sober-tunnel_linux_amd64.tar.gz build/SHA256SUMS build/SHA256SUMS.sig --clobber
           if [[ "$RELEASE_VERSION" == *-rc.* ]]; then
             gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
           else
             gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
           fi
+
+      - name: Verify published release through the updater
+        env:
+          RELEASE_VERIFICATION_TAG: ${{ inputs.version }}
+        run: go test -v -count=1 -timeout 3m ./engines/backpack/internal/manage -run '^TestPublishedReleaseSignatureAndArchive$'

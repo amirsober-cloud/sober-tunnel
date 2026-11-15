@@ -1,6 +1,9 @@
 param([string]$Architecture = 'amd64', [string]$ReleasePublicKey = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+if (!$ReleasePublicKey -and (Test-Path -LiteralPath (Join-Path $repoRoot 'docs/release-public-key.txt'))) {
+    $ReleasePublicKey = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs/release-public-key.txt')).Trim()
+}
 $oldOS = $env:GOOS; $oldArch = $env:GOARCH; $oldCGO = $env:CGO_ENABLED
 try {
     $env:GOOS = 'linux'; $env:GOARCH = $Architecture; $env:CGO_ENABLED = '0'

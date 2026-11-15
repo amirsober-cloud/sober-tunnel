@@ -85,10 +85,12 @@ Restoring a backup registers camouflage services but leaves starting them as an
 explicit panel action. New installations do not migrate or alter existing
 BackPack/Camouflage deployments, SSH settings, or firewall rules automatically.
 
-Source builds have no online release signing key. The online updater targets
-this repository and refuses installation until a sober-tunnel key is embedded
-using `RELEASE_PUBLIC_KEY` (shell) or `-ReleasePublicKey` (PowerShell). Offline
-installation from your own build remains available. A release archive must
+From v0.2.2, release builds and the build scripts embed this distribution's
+public key from `docs/release-public-key.txt`. Menu **8 → Check For Updates**
+verifies the release's Ed25519 signature and archive checksum before installation.
+Versions through v0.2.1 lack this key: run the one-line installer once to upgrade
+them, then reopen `sudo sober-tunnel`. Future updates work from menu 8.
+Offline installation from your own build remains available. A release archive must
 contain both `sober-tunnel` and `sober-tunnel-mimic`, named
 `sober-tunnel_linux_<arch>.tar.gz`. Build it with `bash scripts/package.sh`.
 Updates and pre-update snapshots keep the two executables together. When
@@ -116,7 +118,7 @@ saving; saving does not start a tunnel. Stop an instance before saving edits.
 JSON previews and pairing output contain credentials; use a private terminal.
 ## Release installer
 
-The one-line installer defaults to the published `v0.2.1` bundle, verifies
+The one-line installer defaults to the published `v0.2.2` bundle, verifies
 its SHA256 checksum and installs both executables without downloading Go.
 This release currently provides the Linux amd64 archive only. `SOBER_VERSION`
 selects another published tag. Use `SOBER_INSTALL_MODE=source` to explicitly

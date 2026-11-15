@@ -45,6 +45,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "RELEASE_SIGNING_KEY is not a base64 Ed25519 private key")
 		os.Exit(1)
 	}
+	if expected := strings.TrimSpace(os.Getenv("RELEASE_PUBLIC_KEY")); expected != "" {
+		pub, err := base64.StdEncoding.DecodeString(expected)
+		if err != nil || !ed25519.PublicKey(pub).Equal(ed25519.PrivateKey(key).Public()) {
+			fmt.Fprintln(os.Stderr, "release signing key does not match the public key pinned in this build")
+			os.Exit(1)
+		}
+	}
 
 	sums, err := os.ReadFile(path)
 	if err != nil {

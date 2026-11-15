@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -521,9 +522,11 @@ func extractNamedBinaryTo(archive, dest, member string) error {
 // is restarted and health-checked, and if anything fails to come back up the
 // snapshot is rolled back automatically — so a broken release can never leave
 // the server without working tunnels.
+var ErrUpdateSigningUnavailable = errors.New("this older build cannot verify online updates; run the official installer once to enable signed updates: bash <(curl -fsSL https://raw.githubusercontent.com/amirsober-cloud/sober-tunnel/main/install.sh)")
+
 func ApplyUpdate(logf func(string)) error {
 	if !releasesAreSigned() {
-		return fmt.Errorf("this source build has no sober-tunnel release signing key; install a locally built bundle instead")
+		return ErrUpdateSigningUnavailable
 	}
 	if logf == nil {
 		logf = func(string) {}

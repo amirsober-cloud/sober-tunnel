@@ -34,6 +34,7 @@ func TestAReleaseSignatureIsGoodForItsOwnTagOnly(t *testing.T) {
 	cmd.Dir = "../.."
 	cmd.Env = append(os.Environ(),
 		"RELEASE_SIGNING_KEY="+base64.StdEncoding.EncodeToString(priv),
+		"RELEASE_PUBLIC_KEY="+base64.StdEncoding.EncodeToString(pub),
 		"GITHUB_REF_NAME=v9.9.9")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("signsums: %v\n%s", err, out)
@@ -55,5 +56,18 @@ func TestAReleaseSignatureIsGoodForItsOwnTagOnly(t *testing.T) {
 	altered[0] = 'f'
 	if err := checkReleaseSignature(pub, "v9.9.9", altered, sig); err == nil {
 		t.Fatal("an altered checksum list verified")
+	}
+	// Refuse publication if the secret differs from the key embedded in builds.
+	other, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command("go", "run", "./tools/signsums", sumsPath, "v9.9.9")
+	cmd.Dir = "../.."
+	cmd.Env = append(os.Environ(),
+		"RELEASE_SIGNING_KEY="+base64.StdEncoding.EncodeToString(priv),
+		"RELEASE_PUBLIC_KEY="+base64.StdEncoding.EncodeToString(other))
+	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "does not match") {
+		t.Fatalf("signing accepted a different pinned public key: %v %s", err, out)
 	}
 }

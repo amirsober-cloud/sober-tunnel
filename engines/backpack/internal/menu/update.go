@@ -4,6 +4,7 @@
 package menu
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -190,7 +191,7 @@ func runUpdate() {
 	// The check reads a few hundred bytes and the download tens of megabytes,
 	// so a route that answered the first can still fail the second. The same
 	// offer applies, and only when a tunnel has not already been chosen.
-	if err != nil && !manage.RelayChosen() {
+	if err != nil && !errors.Is(err, manage.ErrUpdateSigningUnavailable) && !manage.RelayChosen() {
 		fmt.Println()
 		if offerRelay(err) {
 			err = manage.ApplyUpdate(func(l string) { tui.Info("• " + l) })

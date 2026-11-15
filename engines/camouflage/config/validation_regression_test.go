@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -21,7 +22,8 @@ func TestNativeSaveReplacesPrivatelyAndPreservesZeroJitter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0600 {
+	// Windows does not expose Unix permission bits; save/reload still runs there.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatal("config credentials are not private")
 	}
 	b, _ := os.ReadFile(path)

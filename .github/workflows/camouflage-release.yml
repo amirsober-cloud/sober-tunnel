@@ -1,12 +1,12 @@
-name: Build Camouflage release candidate
+name: Build and validate release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Existing draft release candidate tag
+        description: Existing draft release tag
         required: true
-        default: v0.2.1-rc.2
+        default: v0.2.1
         type: string
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]
+          [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
           python3 - <<'PY'
           import json, os, re
@@ -58,13 +58,19 @@ jobs:
       - name: Run Linux engine and native pairing checks
         run: |
           go test -timeout 3m ./...
-          go test -timeout 3m ./engines/backpack/internal/mimicmgr ./engines/camouflage/internal/securestream ./engines/camouflage/internal/pool ./engines/camouflage/internal/persona ./engines/camouflage/internal/logging
+          go vet ./...
+          go test -race -timeout 3m ./internal/connection ./internal/forward ./internal/mux
+          go test -timeout 3m ./engines/backpack/internal/mimicmgr ./engines/camouflage/config ./engines/camouflage/internal/securestream ./engines/camouflage/internal/pool ./engines/camouflage/internal/persona ./engines/camouflage/internal/logging
 
-      - name: Upload checked assets and publish prerelease
+      - name: Upload checked assets and publish release
         shell: bash
         run: |
           set -euo pipefail
           test "$(gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = true
           (cd build && sha256sum -c SHA256SUMS)
           gh release upload "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" build/sober-tunnel_linux_amd64.tar.gz build/SHA256SUMS --clobber
-          gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          if [[ "$RELEASE_VERSION" == *-rc.* ]]; then
+            gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
+          fi

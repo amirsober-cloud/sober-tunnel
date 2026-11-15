@@ -3,12 +3,15 @@ package mux
 import (
 	"net"
 	"sync"
+
+	"github.com/amirsober-cloud/sober-tunnel/internal/protocol"
 )
 
 type Session struct {
 	conn net.Conn
 
-	mu sync.RWMutex
+	mu      sync.RWMutex
+	writeMu sync.Mutex
 
 	streams map[uint32]*Stream
 
@@ -53,13 +56,19 @@ func (s *Session) AddStream(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.streams[st.ID]; exists {
+	if _, exists := s.streams[st.ID]; exists || s.closed {
 		return false
 	}
 
 	s.streams[st.ID] = st
 
 	return true
+}
+
+func (s *Session) WriteFrame(frame *protocol.Frame) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return protocol.WriteFrame(s.conn, frame)
 }
 
 func (s *Session) RemoveStream(

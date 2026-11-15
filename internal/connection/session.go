@@ -3,10 +3,13 @@ package connection
 import (
 	"net"
 	"sync"
+
+	"github.com/amirsober-cloud/sober-tunnel/internal/forward"
 )
 
 type Session struct {
-	Conn net.Conn
+	Conn      net.Conn
+	Forwarder *forward.MuxForwarder
 
 	Streams int
 
@@ -18,6 +21,7 @@ type Session struct {
 func NewSession(conn net.Conn, maxStreams int) *Session {
 	return &Session{
 		Conn:       conn,
+		Forwarder:  forward.NewMuxForwarder(conn),
 		MaxStreams: maxStreams,
 	}
 }

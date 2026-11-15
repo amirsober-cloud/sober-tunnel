@@ -1,8 +1,9 @@
 package mux
 
 import (
-	"fmt"
 	"net"
+	"strconv"
+	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/protocol"
 )
@@ -33,7 +34,7 @@ func (h *Handler) Handle(conn net.Conn) {
 
 		h.manager.RemoveSession(id)
 
-		conn.Close()
+		session.Close()
 
 	}()
 
@@ -85,18 +86,19 @@ func (h *Handler) handleOpen(
 		return
 	}
 
-	targetAddr := fmt.Sprintf(
-		"%s:%d",
+	targetAddr := net.JoinHostPort(
 		frame.Address,
-		frame.Port,
+		strconv.Itoa(int(frame.Port)),
 	)
 
-	conn, err := net.Dial(
+	conn, err := net.DialTimeout(
 		"tcp",
 		targetAddr,
+		5*time.Second,
 	)
 
 	if err != nil {
+		session.WriteFrame(&protocol.Frame{Version: protocol.Version1, Command: protocol.CmdClose, StreamID: frame.StreamID})
 		return
 	}
 
@@ -109,13 +111,21 @@ func (h *Handler) handleOpen(
 		Conn: conn,
 	}
 
-	session.AddStream(stream)
+	if !session.AddStream(stream) {
+		conn.Close()
+		return
+	}
 
 	go h.readStream(stream)
 }
 func (h *Handler) readStream(
 	stream *Stream,
 ) {
+	defer func() {
+		stream.Close()
+		stream.Session.RemoveStream(stream.ID)
+		stream.Session.WriteFrame(&protocol.Frame{Version: protocol.Version1, Command: protocol.CmdClose, StreamID: stream.ID})
+	}()
 
 	buf := make(
 		[]byte,
@@ -126,36 +136,33 @@ func (h *Handler) readStream(
 
 		n, err := stream.Conn.Read(buf)
 
-		if err != nil {
+		if n > 0 {
+			frame := &protocol.Frame{
 
-			stream.Close()
+				Version: protocol.Version1,
 
-			return
+				Command: protocol.CmdData,
+
+				StreamID: stream.ID,
+
+				Payload: append(
+					[]byte(nil),
+					buf[:n]...,
+				),
+			}
+
+			writeErr := stream.Session.WriteFrame(
+				frame,
+			)
+
+			if writeErr != nil {
+
+				stream.Close()
+
+				return
+			}
 		}
-
-		frame := &protocol.Frame{
-
-			Version: protocol.Version1,
-
-			Command: protocol.CmdData,
-
-			StreamID: stream.ID,
-
-			Payload: append(
-				[]byte(nil),
-				buf[:n]...,
-			),
-		}
-
-		err = protocol.WriteFrame(
-			stream.Session.conn,
-			frame,
-		)
-
 		if err != nil {
-
-			stream.Close()
-
 			return
 		}
 	}

@@ -1,7 +1,15 @@
 {
   "role": "client",
+
   "remote_host": "127.0.0.1",
   "remote_port": 9000,
+
+  "local_addr": "127.0.0.1",
+  "local_port": 7000,
+
+  "target_host": "127.0.0.1",
+  "target_port": 8080,
+
   "transport": "quic",
 
   "min_connections": 3,

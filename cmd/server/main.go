@@ -4,12 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/config"
 	"github.com/amirsober-cloud/sober-tunnel/internal/connection"
-	"github.com/amirsober-cloud/sober-tunnel/internal/forward"
 	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
+	"github.com/amirsober-cloud/sober-tunnel/internal/mux"
 	"github.com/amirsober-cloud/sober-tunnel/internal/transport"
 )
 
@@ -95,53 +94,12 @@ func main() {
 			conn.RemoteAddr(),
 		)
 
-		go handleConnection(
-			conn,
-			cfg.TargetHost,
-			cfg.TargetPort,
-		)
-	}
-}
+		manager := mux.NewManager()
 
-func handleConnection(
-	tunnel net.Conn,
-	host string,
-	port int,
-) {
-
-	defer tunnel.Close()
-
-	targetAddr := fmt.Sprintf(
-		"%s:%d",
-		host,
-		port,
-	)
-
-	target, err := net.Dial(
-		"tcp",
-		targetAddr,
-	)
-
-	if err != nil {
-
-		logger.Error.Printf(
-			"Target connection failed: %v",
-			err,
+		handler := mux.NewHandler(
+			manager,
 		)
 
-		return
+		go handler.Handle(conn)
 	}
-
-	defer target.Close()
-
-	logger.Info.Printf(
-		"Forwarding %s -> %s",
-		tunnel.RemoteAddr(),
-		targetAddr,
-	)
-
-	forward.Relay(
-		tunnel,
-		target,
-	)
 }

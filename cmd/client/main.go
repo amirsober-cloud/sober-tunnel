@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
+	"strconv"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/config"
 	"github.com/amirsober-cloud/sober-tunnel/internal/connection"
@@ -62,7 +64,77 @@ func main() {
 
 	manager.Start(cfg)
 
+	address := net.JoinHostPort(
+		cfg.LocalAddr,
+		strconv.Itoa(cfg.LocalPort),
+	)
+
+	listener, err := net.Listen(
+		"tcp",
+		address,
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer listener.Close()
+
+	logger.Info.Printf(
+		"Local listener started on %s",
+		address,
+	)
+
+	go func() {
+
+		for {
+
+			conn, err := listener.Accept()
+
+			if err != nil {
+				return
+			}
+
+			session := manager.FreeSession()
+
+			if session == nil {
+
+				logger.Error.Println(
+					"No available session",
+				)
+
+				conn.Close()
+				continue
+			}
+
+			if !session.AcquireStream() {
+
+				conn.Close()
+				continue
+			}
+
+			target := net.JoinHostPort(
+				cfg.TargetHost,
+				strconv.Itoa(cfg.TargetPort),
+			)
+
+			go func() {
+
+				defer session.ReleaseStream()
+
+				session.Forwarder.HandleLocal(
+					conn,
+					target,
+				)
+
+			}()
+
+		}
+
+	}()
+
 	connection.WaitForShutdown()
 
 	manager.Stop()
+
 }

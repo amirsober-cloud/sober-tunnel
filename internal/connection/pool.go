@@ -13,6 +13,7 @@ type Pool struct {
 	conns []net.Conn
 
 	sessions []*Session
+	closed   bool
 }
 
 func (p *Pool) AddSession(s *Session) {
@@ -53,20 +54,27 @@ func NewPool() *Pool {
 	}
 }
 
-func (p *Pool) Add(conn net.Conn) {
+func (p *Pool) Add(conn net.Conn) *Session {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.closed {
+		conn.Close()
+		return nil
+	}
 
 	p.conns = append(
 		p.conns,
 		conn,
 	)
+	session := NewSession(conn, 1024)
+	p.sessions = append(p.sessions, session)
 
 	logger.Info.Printf(
 		"Connection added. Total: %d",
 		len(p.conns),
 	)
+	return session
 }
 
 func (p *Pool) Size() int {
@@ -85,6 +93,12 @@ func (p *Pool) Remove(conn net.Conn) {
 	for i, c := range p.conns {
 
 		if c == conn {
+			for j, session := range p.sessions {
+				if session.Conn == conn {
+					p.sessions = append(p.sessions[:j], p.sessions[j+1:]...)
+					break
+				}
+			}
 
 			conn.Close()
 
@@ -118,6 +132,12 @@ func (p *Pool) RemoveLast() {
 	conn.Close()
 
 	p.conns = p.conns[:size-1]
+	for j, session := range p.sessions {
+		if session.Conn == conn {
+			p.sessions = append(p.sessions[:j], p.sessions[j+1:]...)
+			break
+		}
+	}
 
 	logger.Info.Printf(
 		"Connection removed. Total: %d",
@@ -146,12 +166,14 @@ func (p *Pool) Close() {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.closed = true
 
 	for _, conn := range p.conns {
 		conn.Close()
 	}
 
 	p.conns = nil
+	p.sessions = nil
 
 	logger.Info.Println(
 		"Connection pool closed",

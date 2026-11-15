@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"net"
 	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/internal/logger"
@@ -53,41 +52,11 @@ func (w *Watcher) Start() {
 }
 
 func (w *Watcher) check() {
-
-	connections := w.pool.Connections()
-
-	for _, conn := range connections {
-
-		if !isAlive(conn) {
-
-			logger.Error.Printf(
-				"Dead connection detected: %s",
-				conn.RemoteAddr(),
-			)
-
-			w.pool.Remove(conn)
-		}
-	}
+	// The session's read loop detects disconnects. Setting deadlines here
+	// interrupts live streams and cannot determine whether a peer is alive.
 }
 
 func (w *Watcher) Stop() {
 
 	close(w.stop)
-}
-
-func isAlive(conn net.Conn) bool {
-
-	err := conn.SetDeadline(
-		time.Now().Add(
-			2 * time.Second,
-		),
-	)
-
-	if err != nil {
-		return false
-	}
-
-	defer conn.SetDeadline(time.Time{})
-
-	return true
 }

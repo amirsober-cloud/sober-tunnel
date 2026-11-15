@@ -14,9 +14,22 @@ func (c *Config) Validate() error {
 		if c.RemoteHost == "" {
 			return errors.New("remote_host is required")
 		}
+		if c.LocalAddr == "" {
+			return errors.New("local_addr is required")
+		}
+
+		if c.LocalPort < 1 || c.LocalPort > 65535 {
+			return fmt.Errorf("invalid local_port: %d", c.LocalPort)
+		}
 
 		if c.RemotePort < 1 || c.RemotePort > 65535 {
 			return fmt.Errorf("invalid remote_port: %d", c.RemotePort)
+		}
+		if c.TargetHost == "" {
+			return errors.New("target_host is required")
+		}
+		if c.TargetPort < 1 || c.TargetPort > 65535 {
+			return fmt.Errorf("invalid target_port: %d", c.TargetPort)
 		}
 
 	case "server":

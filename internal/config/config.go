@@ -3,6 +3,9 @@ package config
 type Config struct {
 	Role string `json:"role"`
 
+	LocalAddr string `json:"local_addr"`
+	LocalPort int    `json:"local_port"`
+
 	ListenAddr string `json:"listen_addr"`
 	ListenPort int    `json:"listen_port"`
 

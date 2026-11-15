@@ -88,7 +88,14 @@ func (m *Manager) createConnection(address string) {
 		return
 	}
 
-	m.pool.Add(conn)
+	session := m.pool.Add(conn)
+	if session == nil {
+		return
+	}
+	go func() {
+		session.Forwarder.ReadLoop()
+		m.pool.Remove(conn)
+	}()
 
 	m.backoff.Reset()
 
@@ -211,4 +218,9 @@ func (m *Manager) Stop() error {
 	m.pool.Close()
 
 	return m.transport.Close()
+}
+func (m *Manager) FreeSession() *Session {
+
+	return m.pool.FreeSession()
+
 }

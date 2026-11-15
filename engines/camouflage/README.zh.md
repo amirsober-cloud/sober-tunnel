@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 > Upstream reference documentation retained for attribution and protocol details. For this fork, use the [sober-tunnel installation guide](../../README.md). The integrated binary is sober-tunnel; the optional standalone tool is sober-tunnel-mimic. Upstream install/update commands below do not apply to this fork.
 
 # Camouflage 动态连接池隧道 (Chaos Mesh)
@@ -25,7 +27,7 @@ Camouflage 是一款高性能、企业级的连接多路复用隧道，用于**�
 - **可选 IPv6：** 节点间链路与出口可用 IPv6（`egress_ip_mode`：`ipv4` 默认 / `ipv6` / `dual`），默认不泄露服务器的 IPv6 身份。
 - **可选 TUN 模式 + 无泄漏 DNS：** 除 SOCKS5 端口外，每个节点还可暴露一个操作系统级 **TUN 接口**（`--tun`），让隧道能当作普通网络接口使用；外加一个 **`:53` DNS 转发器**（`--dns`），通过隧道解析（无本地泄漏）。它是 per-node 的（各自的接口 + `/24`）、可选，且**永不成为主机默认路由**——因此中枢自身的出口与 SSH 保持直连。TUN 引擎（在节点 SOCKS 之上的 gVisor 用户态协议栈）不需要外部 `ip` 程序，因此在 `FROM scratch` 容器内也能工作。
 - **透明网关模式（路由整个局域网）：** 通过 `--gateway`，一个枢纽——尤其是 **MikroTik/RouterOS** 上或任意 Linux 路由器上的单个容器——变成透明的 L3 网关：局域网设备仍以路由器为网关，你把想走隧道的流量**打标 + 路由**到容器（正是 WireGuard/L2TP 模式），整段局域网便经由伪装隧道出口——**无需改动任何设备、无需外部代理**。基于 TUN 引擎；用 netlink 路由（`iif` 规则 + `ip_forward`）并带 RouterOS 7.22 防护。**已在真实 RouterOS CHR 和普通 Linux 路由器上端到端验证**（局域网客户端出口 IP = 境外节点，TCP+UDP，无 DNS 泄漏，不锁死访问）。
-- **运行于 MikroTik / Docker：** 以极小的多架构（`amd64/arm64/armv7`）`FROM scratch` 镜像（~17 MB）发布于 `ghcr.io/camouflage/pool-tunnel`，**已在 RouterOS 容器中验证运行，TUN 与网关模式均可用**——见分步 **[MikroTik 指南](docs/MIKROTIK.zh.md)**。
+- **运行于 MikroTik / Docker：** 以极小的多架构（`amd64/arm64/armv7`）`FROM scratch` 镜像（~17 MB）发布于 `sober-tunnel-mimic:local`，**已在 RouterOS 容器中验证运行，TUN 与网关模式均可用**——见分步 **[MikroTik 指南](docs/MIKROTIK.zh.md)**。
 - **可插拔协议伪装——16 种军火库：** 一个节点同时监听多种伪装。**SSH**（逐字节镜像主机自身 `sshd` 的真实 SSH-2.0 banner）；**隐式 TLS** 于 **TLS/HTTPS**、**HTTPS-alt（:8443）**、**SMTPS/IMAPS（465/993）**、一个 **Docker Registry（:5000）**、**Grafana（:3000）**、**Prometheus（:9090）**，以及 **cPanel / WHM / Webmail** 面板（`:2083/2087/2096`，真实的 `cpsrvd` 服务器头与像素级还原的登录页）；**STARTTLS** 于 **SMTP/IMAP（587/143）**、**PostgreSQL（:5432）** 与 **MySQL（:3306）**（真实的协议序言——`SSLRequest`、MySQL v10 问候——在升级到 TLS 之前）；以及 **DirectAdmin** 面板（:2222）。中枢以**每台独特的浮动分布**在它们之间分散物理连接（Chaos Mesh v2）。未授权探测会被路由到与协议相符的诱饵——真实 `sshd`、真实面板登录页，或 `Server`/`ETag`/`Last-Modified` **每台唯一**的网页人格；**80 端口**也运行诱饵，让裸 IP 在信誉扫描器眼里像普通网站主机。
 - **一致的服务器人格（Persona）：** 节点可以佩戴一个**人格**而非随机伪装组合——一个真实管理员能认出的自洽身份：**`cpanel`**（TLS + cPanel/WHM/Webmail）、**`directadmin`**（TLS + DirectAdmin）或 **`devops`**（TLS + HTTPS-alt + Docker + Grafana + Prometheus）。每个人格是 **SSH + 9 个一致的伪装**，由节点令牌确定性地派生（因此中枢能从共享令牌推导出完全相同的集合），并有一致性规则确保不兼容的面板永不同时出现。用 `--persona cpanel|directadmin|devops` 选择，或 `--persona auto`。
 - **仅需粘贴的接入（v2 配对令牌）：** `setup-foreign` 打印一个自包含的**配对令牌**（base64url），已携带出口 IP、每个 伪装→端口 映射、人格与认证密钥——因此中枢只需粘贴一行即可接入：`setup-iran --token <PAIRING_TOKEN> --socks-port 40001`。无需手动 `--target-ip`/`--mimics`/`--persona`。
@@ -74,14 +76,14 @@ Camouflage 是一款高性能、企业级的连接多路复用隧道，用于**�
 ## 🐳 Docker 与 MikroTik
 
 Camouflage 以极小的多架构（`amd64/arm64/armv7`）`FROM scratch` 镜像（~17 MB）发布于
-`ghcr.io/camouflage/pool-tunnel`。在容器中运行中枢：
+`sober-tunnel-mimic:local`。在容器中运行中枢：
 
     docker run -d --name camouflage --restart unless-stopped \
       --cap-add NET_ADMIN --device /dev/net/tun \
-      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 
 （仅 SOCKS 模式既不需要该 cap 也不需要该 device。）先用一次性运行写入配置，例如
-`docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest setup-iran
+`docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local setup-iran
 --alias FR --token <PAIRING_TOKEN> --socks-port 40001 --tun --dns`。镜像没有 shell，但你仍可
 通过 `docker exec camouflage sober-tunnel-mimic test --node FR` 运行任意子命令（speedtest、probe、
 edit-node……）；改配置后用 `docker restart camouflage` 生效。

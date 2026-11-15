@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 > Upstream reference documentation retained for attribution and protocol details. For this fork, use the [sober-tunnel installation guide](../../README.md). The integrated binary is sober-tunnel; the optional standalone tool is sober-tunnel-mimic. Upstream install/update commands below do not apply to this fork.
 
 # Camouflage Dynamic Pool Tunnel (Chaos Mesh)
@@ -23,7 +25,7 @@ Camouflage Pool Tunnel is a high-performance, enterprise-grade connection multip
 - **Optional IPv6:** The inter-node link and egress-to-internet can use IPv6 (`egress_ip_mode`: `ipv4` default / `ipv6` / `dual`), opt-in so the server's IPv6 identity is never leaked by default.
 - **Opt-in TUN mode + leak-free DNS:** Besides the SOCKS5 port, each node can expose an OS-level **TUN interface** (`--tun`) so the tunnel is usable as a plain network interface, plus a **`:53` DNS forwarder** (`--dns`) that resolves through the tunnel (no local leak). It is per-node (own interface + `/24`), opt-in, and **never becomes the host default route** — so the hub's own egress and SSH stay direct. The TUN engine (a gVisor userspace stack over the node's SOCKS) needs no external `ip` binary, so it works inside a `FROM scratch` container.
 - **Transparent Gateway mode (route a whole LAN):** with `--gateway`, a hub — especially a single container on **MikroTik/RouterOS** or any Linux router — becomes a transparent L3 gateway: LAN devices keep the router as their gateway, you **mark + route** the traffic you want tunneled to the container (exactly the WireGuard/L2TP pattern), and it forwards a whole LAN through the disguised tunnel — **no per-device change and no external proxy**. Built on the TUN engine; routing via netlink (`iif` rule + `ip_forward`) with a RouterOS-7.22 guard. **Validated end-to-end on a real RouterOS CHR and a plain Linux router** (LAN client's exit IP = the foreign, TCP+UDP, no DNS leak, no lock-out).
-- **Runs on MikroTik / in Docker:** ships as a tiny multi-arch (`amd64/arm64/armv7`) `FROM scratch` image (~17 MB) at `ghcr.io/camouflage/pool-tunnel`, **verified running inside a RouterOS container with TUN + gateway mode working** — see the step-by-step **[MikroTik guide](docs/MIKROTIK.md)**.
+- **Runs on MikroTik / in Docker:** ships as a tiny multi-arch (`amd64/arm64/armv7`) `FROM scratch` image (~17 MB) at `sober-tunnel-mimic:local`, **verified running inside a RouterOS container with TUN + gateway mode working** — see the step-by-step **[MikroTik guide](docs/MIKROTIK.md)**.
 - **Pluggable Protocol Mimicry — 16-mimic arsenal:** A single node listens behind many camouflages at once. **SSH** (real SSH-2.0 banner mirrored byte-for-byte from the host's own `sshd`); **implicit-TLS** on **TLS/HTTPS**, **HTTPS-alt (:8443)**, **SMTPS/IMAPS (465/993)**, a **Docker Registry (:5000)**, **Grafana (:3000)**, **Prometheus (:9090)**, and the **cPanel / WHM / Webmail** panels (`:2083/2087/2096`, real `cpsrvd` server header and pixel-faithful login pages); **STARTTLS** on **SMTP/IMAP (587/143)**, **PostgreSQL (:5432)** and **MySQL (:3306)** (genuine protocol prologues — `SSLRequest`, a MySQL v10 greeting — before the TLS upgrade); and a **DirectAdmin** panel (`:2222`). The hub spreads its physical pipes across them with a **per-install fluctuating distribution** (Chaos Mesh v2), so two servers running the same build present different, shifting on-wire signatures. Every mimic routes unauthorized probes to a protocol-appropriate decoy — the real `sshd`, a real panel login, or a web persona whose `Server`/`ETag`/`Last-Modified` are **per-install unique** (seeded from the token, no fleet-wide signature). A plaintext decoy on **`:80`** makes even the bare IP look like an ordinary web host to reputation scanners. See **[docs/MIMICS.md](docs/MIMICS.md)**.
 - **Coherent Server Personas:** Instead of a random mimic mix, a node can wear a **persona** — a self-consistent identity that real admins would recognize: **`cpanel`** (TLS + cPanel/WHM/Webmail), **`directadmin`** (TLS + DirectAdmin), or **`devops`** (TLS + HTTPS-alt + Docker + Grafana + Prometheus). Each persona is **SSH + 9 coherent mimics**, seeded deterministically from the node's token (so the hub can re-derive the exact same set from the shared token), with a coherence rule so incompatible panels never co-appear. Pick one with `--persona cpanel|directadmin|devops`, or `--persona auto`.
 - **Paste-only onboarding (v2 pairing token):** `setup-foreign` prints a single self-contained **pairing token** (base64url) that already carries the exit IP, every mimic→port mapping, the persona and the auth key — so the hub is onboarded by pasting one string: `setup-iran --token <PAIRING_TOKEN> --socks-port 40001`. No `--target-ip`/`--mimics`/`--persona` to match by hand.
@@ -100,14 +102,14 @@ To manage servers, view live connection status, or perform lifecycle operations,
 ## 🐳 Docker & MikroTik
 
 Camouflage ships as a tiny multi-arch (`amd64/arm64/armv7`) `FROM scratch` image (~17 MB) at
-`ghcr.io/camouflage/pool-tunnel`. Run the hub in a container:
+`sober-tunnel-mimic:local`. Run the hub in a container:
 
     docker run -d --name camouflage --restart unless-stopped \
       --cap-add NET_ADMIN --device /dev/net/tun \
-      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 
 (SOCKS-only needs neither the cap nor the device.) Write the config first with a one-off
-run, e.g. `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+run, e.g. `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 setup-iran --alias FR --token <PAIRING_TOKEN> --socks-port 40001 --tun --dns`. The image has
 no shell, but you still run any subcommand via `docker exec camouflage sober-tunnel-mimic test
 --node FR` (speedtest, probe, edit-node, …); after a config edit, `docker restart camouflage`

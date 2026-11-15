@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 > Upstream reference documentation retained for attribution and protocol details. For this fork, use the [sober-tunnel installation guide](../../README.md). The integrated binary is sober-tunnel; the optional standalone tool is sober-tunnel-mimic. Upstream install/update commands below do not apply to this fork.
 
 # هدیوم — تونل استخر پویا (Chaos Mesh)
@@ -26,7 +28,7 @@
 - **IPv6 اختیاری:** لینک بین دو نود و همچنین خروجی به اینترنت می‌تواند از IPv6 استفاده کند (`egress_ip_mode`: مقدار `ipv4` پیش‌فرض / `ipv6` / `dual`)؛ اختیاری است تا هویت IPv6 سرور به‌صورت پیش‌فرض لو نرود.
 - **حالتِ TUN اختیاری + DNSِ بدونِ نشت:** علاوه بر پورتِ SOCKS5، هر نود می‌تواند یک **اینترفیس TUN** در سطحِ سیستم‌عامل عرضه کند (`--tun`) تا تونل مثل یک اینترفیسِ شبکه‌ی معمولی قابل‌استفاده باشد، به‌علاوه یک **forwarderِ DNS روی `:53`** (`--dns`) که از دلِ تونل resolve می‌کند (بدونِ نشتِ محلی). این per-node است (اینترفیس + `/24` مخصوصِ خودش)، اختیاری، و **هرگز default route هاست نمی‌شود** — پس خروجیِ خودِ هاب و SSH مستقیم می‌مانند. موتورِ TUN (یک استکِ فضای‌کاربرِ gVisor روی SOCKSِ نود) به باینریِ `ip` نیاز ندارد، پس داخلِ کانتینرِ `FROM scratch` هم کار می‌کند.
 - **حالتِ Gatewayِ شفاف (روتِ کلِ یک LAN):** با `--gateway`، یک هاب — به‌ویژه یک کانتینرِ واحد روی **MikroTik/RouterOS** یا هر روترِ لینوکسی — به یک گیت‌ویِ شفافِ L3 تبدیل می‌شود: دستگاه‌های LAN گیت‌وی‌شان همان روتر می‌ماند، تو ترافیکِ موردنظر را **mark + route** به کانتینر می‌کنی (دقیقاً الگوی WireGuard/L2TP) و کلِ یک LAN از دلِ تونلِ استتارشده می‌رود — **بدونِ تغییرِ هیچ دستگاه و بدونِ پراکسیِ بیرونی**. روی موتورِ TUN؛ روتینگ با netlink (قانونِ `iif` + `ip_forward`) و گاردِ RouterOS 7.22. **سرتاسری روی RouterOS CHRِ واقعی و یک روترِ لینوکسیِ ساده تست شده** (exitِ کلاینتِ LAN = فارین، TCP+UDP، بدونِ نشتِ DNS، بدونِ قفل).
-- **اجرا روی MikroTik / در Docker:** به‌صورتِ یک ایمیجِ کوچکِ چندمعماری (`amd64/arm64/armv7`) و `FROM scratch` (~۱۷MB) روی `ghcr.io/camouflage/pool-tunnel` عرضه می‌شود، و **اجرای موفقش داخلِ کانتینرِ RouterOS همراه با کارکردِ TUN و حالتِ gateway تأیید شده** — راهنمای گام‌به‌گام: **[راهنمای MikroTik](docs/MIKROTIK.fa.md)**.
+- **اجرا روی MikroTik / در Docker:** به‌صورتِ یک ایمیجِ کوچکِ چندمعماری (`amd64/arm64/armv7`) و `FROM scratch` (~۱۷MB) روی `sober-tunnel-mimic:local` عرضه می‌شود، و **اجرای موفقش داخلِ کانتینرِ RouterOS همراه با کارکردِ TUN و حالتِ gateway تأیید شده** — راهنمای گام‌به‌گام: **[راهنمای MikroTik](docs/MIKROTIK.fa.md)**.
 - **استتار چندگانه — زرادخانه‌ی ۱۶‌تایی:** یک نود هم‌زمان پشت چندین استتار گوش می‌دهد. **SSH** (بنر SSH-2.0 واقعی که بایت‌به‌بایت از `sshd` خود سرور آینه می‌شود)؛ **implicit-TLS** روی **TLS/HTTPS**، **HTTPS-alt (پورت ۸۴۴۳)**، **SMTPS/IMAPS (۴۶۵/۹۹۳)**، یک **Docker Registry (پورت ۵۰۰۰)**، **Grafana (۳۰۰۰)**، **Prometheus (۹۰۹۰)**، و پنل‌های **cPanel / WHM / Webmail** (`۲۰۸۳/۲۰۸۷/۲۰۹۶`، با هدرِ واقعیِ سرورِ `cpsrvd` و صفحاتِ لاگینِ پیکسل‌به‌پیکسل)؛ **STARTTLS** روی **SMTP/IMAP (۵۸۷/۱۴۳)**، **PostgreSQL (۵۴۳۲)** و **MySQL (۳۳۰۶)** (پیش‌گفتارِ واقعیِ پروتکل — `SSLRequest`، بنرِ MySQL v10 — پیش از ارتقا به TLS)؛ و پنلِ **DirectAdmin** (پورت ۲۲۲۲). هاب اتصالاتش را با یک **توزیع نوسانی و مخصوص هر نصب** بین این‌ها پخش می‌کند (Chaos Mesh v2)، پس دو سرور با نسخه‌ی یکسان هم امضای متفاوت و متغیری روی شبکه دارند. هر استتار پروب‌های غیرمجاز را به decoyِ مناسبِ همان پروتکل می‌فرستد — `sshd` واقعی، لاگینِ یک پنلِ واقعی، یا یک شخصیتِ وب که هدرهای `Server`/`ETag`/`Last-Modified`اش **برای هر نصب یکتاست** (از توکن seed می‌شود). یک decoy ساده روی **پورت `:80`** حتی خودِ IP را هم برای اسکنرهای شهرت مثل یک وب‌سرور معمولی نشان می‌دهد. راهنمای کامل: **[docs/MIMICS.md](docs/MIMICS.md)**.
 - **شخصیت‌های منسجمِ سرور (Persona):** به‌جای ترکیبِ تصادفیِ استتارها، یک نود می‌تواند یک **persona** به تن کند — یک هویتِ خودسازگار که هر ادمینِ واقعی می‌شناسدش: **`cpanel`** (TLS + cPanel/WHM/Webmail)، **`directadmin`** (TLS + DirectAdmin)، یا **`devops`** (TLS + HTTPS-alt + Docker + Grafana + Prometheus). هر persona **SSH + ۹ استتارِ منسجم** است که به‌صورتِ قطعی از توکنِ نود seed می‌شود (پس هاب می‌تواند دقیقاً همان مجموعه را از توکنِ مشترک بازتولید کند)، با قانونی که پنل‌های ناسازگار هرگز کنارِ هم ظاهر نشوند. با `--persona cpanel|directadmin|devops` انتخاب کن، یا `--persona auto`.
 - **آنبوردینگِ فقط-با-چسباندن (توکنِ pairing نسخهٔ ۲):** `setup-foreign` یک **توکنِ pairingِ** خودبسنده (base64url) چاپ می‌کند که خودش IP خروجی، نگاشتِ هر استتار→پورت، persona و کلیدِ احراز را دارد — پس هاب فقط با چسباندنِ یک رشته آنبورد می‌شود: `setup-iran --token <PAIRING_TOKEN> --socks-port 40001`. دیگر `--target-ip`/`--mimics`/`--persona` دستی لازم نیست.
@@ -100,14 +102,14 @@ persona خودکار تنظیم می‌شوند (نیازی به `--target-ip`/`
 ## 🐳 Docker و MikroTik
 
 هدیوم به‌صورتِ یک ایمیجِ کوچکِ چندمعماری (`amd64/arm64/armv7`) و `FROM scratch` (~۱۷MB) روی
-`ghcr.io/camouflage/pool-tunnel` عرضه می‌شود. هاب را داخلِ کانتینر اجرا کن:
+`sober-tunnel-mimic:local` عرضه می‌شود. هاب را داخلِ کانتینر اجرا کن:
 
     docker run -d --name camouflage --restart unless-stopped \
       --cap-add NET_ADMIN --device /dev/net/tun \
-      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 
 (حالتِ فقط-SOCKS نه به cap نیاز دارد نه به device.) اول کانفیگ را با یک اجرای یک‌بارمصرف بنویس،
-مثلاً `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest setup-iran
+مثلاً `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local setup-iran
 --alias FR --token <PAIRING_TOKEN> --socks-port 40001 --tun --dns`. ایمیج شل ندارد، ولی همچنان هر
 زیردستور را با `docker exec camouflage sober-tunnel-mimic test --node FR` اجرا می‌کنی (speedtest، probe،
 edit-node، …)؛ بعد از ویرایشِ کانفیگ، `docker restart camouflage` تا اعمال شود.

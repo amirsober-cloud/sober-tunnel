@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 > Upstream reference documentation retained for attribution and protocol details. For this fork, use the [sober-tunnel installation guide](../../README.md). The integrated binary is sober-tunnel; the optional standalone tool is sober-tunnel-mimic. Upstream install/update commands below do not apply to this fork.
 
 # Camouflage Dynamic Pool Tunnel (Chaos Mesh)
@@ -25,7 +27,7 @@ Camouflage — это высокопроизводительный туннел�
 - **Опциональный IPv6:** межузловой канал и выход могут использовать IPv6 (`egress_ip_mode`: `ipv4` по умолчанию / `ipv6` / `dual`), не раскрывая IPv6-личность сервера по умолчанию.
 - **Опциональный TUN + DNS без утечек:** помимо порта SOCKS5, каждый узел может предоставить **TUN-интерфейс** уровня ОС (`--tun`), чтобы туннель был доступен как обычный сетевой интерфейс, плюс **форвардер DNS на `:53`** (`--dns`), разрешающий имена через туннель (без локальной утечки). Это per-node (свой интерфейс + `/24`), опционально и **никогда не становится маршрутом по умолчанию** — так что собственный выход хаба и SSH остаются прямыми. TUN-движок (userspace-стек gVisor поверх SOCKS узла) не требует внешнего `ip`, поэтому работает и в контейнере `FROM scratch`.
 - **Прозрачный режим шлюза (маршрутизация всей LAN):** с `--gateway` хаб — особенно единственный контейнер на **MikroTik/RouterOS** или любом Linux-маршрутизаторе — становится прозрачным L3-шлюзом: устройства LAN оставляют маршрутизатор своим шлюзом, вы **маркируете + маршрутизируете** нужный трафик на контейнер (точно паттерн WireGuard/L2TP), и целая LAN идёт через замаскированный туннель — **без изменений на устройствах и без внешнего прокси**. На движке TUN; маршрутизация через netlink (`iif`-правило + `ip_forward`) с защитой для RouterOS 7.22. **Проверено от начала до конца на настоящем RouterOS CHR и на обычном Linux-маршрутизаторе** (выходной IP клиента LAN = зарубежный, TCP+UDP, без утечек DNS, без блокировки доступа).
-- **Работает на MikroTik / в Docker:** поставляется как крошечный мультиарх (`amd64/arm64/armv7`) образ `FROM scratch` (~17 МБ) на `ghcr.io/camouflage/pool-tunnel`, **проверено в контейнере RouterOS с работающими TUN и режимом шлюза** — см. пошаговое **[руководство по MikroTik](docs/MIKROTIK.ru.md)**.
+- **Работает на MikroTik / в Docker:** поставляется как крошечный мультиарх (`amd64/arm64/armv7`) образ `FROM scratch` (~17 МБ) на `sober-tunnel-mimic:local`, **проверено в контейнере RouterOS с работающими TUN и режимом шлюза** — см. пошаговое **[руководство по MikroTik](docs/MIKROTIK.ru.md)**.
 - **Подключаемые маскировки — арсенал из 16:** один узел слушает сразу за многими масками. **SSH** (реальный баннер SSH-2.0, побайтово зеркалирующий `sshd` хоста); **implicit-TLS** на **TLS/HTTPS**, **HTTPS-alt (:8443)**, **SMTPS/IMAPS (465/993)**, **Docker Registry (:5000)**, **Grafana (:3000)**, **Prometheus (:9090)** и панелях **cPanel / WHM / Webmail** (`:2083/2087/2096`, настоящий заголовок сервера `cpsrvd` и пиксельно точные страницы входа); **STARTTLS** на **SMTP/IMAP (587/143)**, **PostgreSQL (:5432)** и **MySQL (:3306)** (настоящие прологи протокола — `SSLRequest`, приветствие MySQL v10 — до перехода на TLS); и панель **DirectAdmin** (:2222). Хаб распределяет соединения между ними с **уникальным для каждой установки плавающим распределением** (Chaos Mesh v2). Неавторизованные зонды направляются к правдоподобной приманке — реальный `sshd`, вход в настоящую панель или веб-персона, чьи заголовки `Server`/`ETag`/`Last-Modified` **уникальны для каждой установки**. На порту **80** тоже работает приманка, чтобы даже «голый» IP выглядел как обычный веб-хост.
 - **Цельные серверные персоны:** вместо случайного набора масок узел может носить **персону** — самосогласованную личность, узнаваемую реальными админами: **`cpanel`** (TLS + cPanel/WHM/Webmail), **`directadmin`** (TLS + DirectAdmin) или **`devops`** (TLS + HTTPS-alt + Docker + Grafana + Prometheus). Каждая персона — это **SSH + 9 согласованных масок**, детерминированно порождённых из токена узла (так что хаб выводит тот же набор из общего токена), с правилом, что несовместимые панели не появляются вместе. Выбор: `--persona cpanel|directadmin|devops` или `--persona auto`.
 - **Онбординг «вставь-и-готово» (pairing-токен v2):** `setup-foreign` печатает единый самодостаточный **pairing-токен** (base64url), уже содержащий IP выхода, все сопоставления маска→порт, персону и ключ — так что хаб настраивается вставкой одной строки: `setup-iran --token <PAIRING_TOKEN> --socks-port 40001`. Никаких ручных `--target-ip`/`--mimics`/`--persona`.
@@ -74,14 +76,14 @@ Camouflage — это высокопроизводительный туннел�
 ## 🐳 Docker и MikroTik
 
 Camouflage поставляется как крошечный мультиарх (`amd64/arm64/armv7`) образ `FROM scratch`
-(~17 МБ) на `ghcr.io/camouflage/pool-tunnel`. Запуск хаба в контейнере:
+(~17 МБ) на `sober-tunnel-mimic:local`. Запуск хаба в контейнере:
 
     docker run -d --name camouflage --restart unless-stopped \
       --cap-add NET_ADMIN --device /dev/net/tun \
-      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+      -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 
 (Для режима только-SOCKS не нужны ни cap, ни device.) Сначала запишите конфиг разовым
-запуском, напр. `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic ghcr.io/camouflage/pool-tunnel:latest
+запуском, напр. `docker run --rm -v /etc/sober-tunnel/mimic:/etc/sober-tunnel/mimic sober-tunnel-mimic:local
 setup-iran --alias FR --token <PAIRING_TOKEN> --socks-port 40001 --tun --dns`. В образе нет
 shell, но любую подкоманду можно выполнить через `docker exec camouflage sober-tunnel-mimic test
 --node FR` (speedtest, probe, edit-node, …); после правки конфига `docker restart camouflage`.

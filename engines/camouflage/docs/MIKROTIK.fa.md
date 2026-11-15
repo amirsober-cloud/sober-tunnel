@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 # اجرای Camouflage روی MikroTik / RouterOS
 
 **زبان‌ها:** [English](MIKROTIK.md) · فارسی · [Русский](MIKROTIK.ru.md) · [中文](MIKROTIK.zh.md)
@@ -126,12 +128,12 @@ loopbackِ کانتینر):
 
 ```rsc
 /container/config/set registry-url=https://ghcr.io tmpdir=camouflage-tmp
-/container/add remote-image=camouflage/pool-tunnel:latest interface=veth1 mounts=hcfg \
+/container/add remote-image=YOUR_REGISTRY/camouflage:latest interface=veth1 mounts=hcfg \
     root-dir=camouflage logging=yes start-on-boot=yes
 ```
 
 **گزینهٔ ب — ایمپورتِ tar (بدونِ نیاز به registry):** روی یک ماشینِ دارای Docker،
-`docker save ghcr.io/camouflage/pool-tunnel:latest -o camouflage-img.tar`، آن را روی روتر آپلود کنید
+`docker save sober-tunnel-mimic:local -o camouflage-img.tar`، آن را روی روتر آپلود کنید
 (`/tool/fetch`، scp یا WinBox)، بعد:
 
 ```rsc
@@ -278,4 +280,4 @@ distanceِ کمتر برای بازگشت به مستقیم یا خروجیِ د
 
 ایمیج به‌صورتِ خودکار توسطِ `.github/workflows/docker-publish.yml` روی هر تگِ `v*` بیلد و به GHCR پوش می‌شود.
 **اولین** پوش پکیج را **private** می‌سازد؛ یک‌بار آن را در
-`https://github.com/orgs/camouflage/packages/container/pool-tunnel/settings` → *Change visibility* → *Public* عمومی کنید.
+`https://github.com/amirsober-cloud?tab=packages` → *Change visibility* → *Public* عمومی کنید.

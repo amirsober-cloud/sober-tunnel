@@ -1,3 +1,5 @@
+> Camouflage distribution: container examples require a locally built image (`make docker` in `engines/camouflage`). This release does not publish a container image. For RouterOS, import a local image archive or publish to your own registry. These source guides describe engine capabilities; current distribution validation is recorded in the root `docs/` directory.
+
 # 在 MikroTik / RouterOS 上运行 Camouflage
 
 **语言：** [English](MIKROTIK.md) · [فارسی](MIKROTIK.fa.md) · [Русский](MIKROTIK.ru.md) · 中文
@@ -122,12 +124,12 @@ SOCKS 而不要 TUN 时，去掉 `--tun --dns`。）*
 
 ```rsc
 /container/config/set registry-url=https://ghcr.io tmpdir=camouflage-tmp
-/container/add remote-image=camouflage/pool-tunnel:latest interface=veth1 mounts=hcfg \
+/container/add remote-image=YOUR_REGISTRY/camouflage:latest interface=veth1 mounts=hcfg \
     root-dir=camouflage logging=yes start-on-boot=yes
 ```
 
 **方案 B — 导入 tar（无需镜像仓库）：** 在装有 Docker 的机器上执行
-`docker save ghcr.io/camouflage/pool-tunnel:latest -o camouflage-img.tar`，上传到路由器
+`docker save sober-tunnel-mimic:local -o camouflage-img.tar`，上传到路由器
 （`/tool/fetch`、scp 或 WinBox），然后：
 
 ```rsc
@@ -272,5 +274,5 @@ Camouflage 的**网关模式**把容器变成一个透明的 L3 网关——就�
 
 镜像由 `.github/workflows/docker-publish.yml` 在每个 `v*` 标签上自动构建并推送到 GHCR。**首次**
 推送会把软件包创建为**私有**；在
-`https://github.com/orgs/camouflage/packages/container/pool-tunnel/settings` → *Change visibility*
+`https://github.com/amirsober-cloud?tab=packages` → *Change visibility*
 → *Public* 处一次性设为公开即可。

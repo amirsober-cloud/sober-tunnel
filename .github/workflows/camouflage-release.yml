@@ -60,6 +60,7 @@ jobs:
 
       - name: Run Linux engine and native pairing checks
         run: |
+          go test -race -timeout 3m ./engines/camouflage/internal/ingress ./engines/camouflage/tooling ./engines/backpack/internal/mimicmgr
           go test -timeout 3m ./...
           go vet ./...
           go test -race -timeout 3m ./internal/connection ./internal/forward ./internal/mux

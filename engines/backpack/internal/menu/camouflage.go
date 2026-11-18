@@ -207,8 +207,8 @@ func camouflagePrepare(name, command string) {
 		camouflageResult(fmt.Errorf("unexpected native preview result"))
 		return
 	}
-	fmt.Println(preview["output"])
 	if command == "pairing" {
+		fmt.Println(preview["output"])
 		tui.PressEnter()
 		return
 	}
@@ -217,7 +217,7 @@ func camouflagePrepare(name, command string) {
 		camouflageResult(fmt.Errorf("native preview has no configuration"))
 		return
 	}
-	fmt.Println(string(data))
+	fmt.Println(string(mimicmgr.RedactConfig(data)))
 	if tui.Confirm("Save configuration (does not start the tunnel)", false) {
 		camouflageResult(mimicmgr.Default.Save(context.Background(), name, data))
 	}

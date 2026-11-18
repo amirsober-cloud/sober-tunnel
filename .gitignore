@@ -24,6 +24,10 @@ Thumbs.db
 
 # Environment files
 .env
+server ssh.txt
+*ssh*.txt
+*.pem
+*.key
 
 # Private clone metadata retained locally; engine source is versioned normally.
 .upstream-git/

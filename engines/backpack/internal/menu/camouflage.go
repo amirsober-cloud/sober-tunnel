@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/tooling"
+
 	"github.com/backpack/backpack/internal/mimicmgr"
 	"github.com/backpack/backpack/internal/tui"
 )
@@ -182,6 +184,17 @@ func camouflagePrepare(name, command string) {
 			delete(values, flag.Name)
 		} else {
 			values[flag.Name] = value
+			if flag.Name == "token" && (command == "setup-iran" || command == "add-node") {
+				defaults, err := tooling.PairingDefaults(value)
+				if err != nil {
+					tui.Error(err.Error())
+					tui.PressEnter()
+				} else {
+					for key, setting := range defaults {
+						values[key] = setting
+					}
+				}
+			}
 		}
 	}
 	result, err := mimicmgr.Default.Prepare(context.Background(), mimicmgr.ToolRequest{Name: name, Command: command, Flags: values})

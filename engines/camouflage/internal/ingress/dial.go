@@ -55,7 +55,32 @@ func DialEndpoint(ep config.Endpoint, token string, cfg *yamux.Config) (*yamux.S
 		secureConn.Close()
 		return nil, err
 	}
+	if err := verifySession(session, 5*time.Second); err != nil {
+		return nil, fmt.Errorf("%s mimic data round-trip failed: %w", ep.Mimic, err)
+	}
 	return session, nil
+}
+
+// Authentication alone does not prove that the mux can exchange data. Never
+// admit a blackholed connection to the pool, where it would stall user streams.
+func verifySession(session *yamux.Session, timeout time.Duration) error {
+	done := make(chan error, 1)
+	go func() {
+		_, err := session.Ping()
+		done <- err
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		if err != nil {
+			session.Close()
+		}
+		return err
+	case <-timer.C:
+		session.Close() // also releases the pending Ping goroutine
+		return fmt.Errorf("yamux readiness timed out after %s", timeout)
+	}
 }
 
 // ProbeEndpoint dials one endpoint end-to-end (TCP + mimic handshake + yamux) and

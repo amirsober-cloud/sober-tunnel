@@ -64,8 +64,9 @@ func TestProbeEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProbeEndpoint: %v", err)
 	}
-	if rtt <= 0 {
-		t.Fatalf("rtt = %v, want > 0", rtt)
+	// A local round trip can be below the platform clock's resolution.
+	if rtt < 0 {
+		t.Fatalf("rtt = %v, want >= 0", rtt)
 	}
 }
 

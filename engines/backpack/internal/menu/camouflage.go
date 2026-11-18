@@ -218,7 +218,7 @@ func camouflagePrepare(name, command string) {
 		return
 	}
 	fmt.Println(string(mimicmgr.RedactConfig(data)))
-	if tui.Confirm("Save configuration (does not start the tunnel)", false) {
+	if tui.Confirm("Save configuration (new instances start automatically)", false) {
 		camouflageResult(mimicmgr.Default.Save(context.Background(), name, data))
 	}
 }

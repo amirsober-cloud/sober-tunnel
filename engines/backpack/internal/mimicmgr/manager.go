@@ -202,6 +202,13 @@ func (m *Manager) Save(ctx context.Context, name string, data json.RawMessage) e
 		restore()
 		return fmt.Errorf("systemd reload failed: %w", err)
 	}
+	if os.IsNotExist(cfgErr) {
+		// Start only newly created instances. Editing a deliberately stopped
+		// instance must not unexpectedly bring it online.
+		if _, err := m.command(ctx, "systemctl", "enable", "--now", m.unit(name)); err != nil {
+			return fmt.Errorf("configuration saved, but automatic start failed; use Start or Logs for this instance: %w", err)
+		}
+	}
 	return nil
 }
 

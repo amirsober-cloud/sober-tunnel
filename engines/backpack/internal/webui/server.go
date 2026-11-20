@@ -30,7 +30,7 @@ var loginHTML []byte
 //go:embed assets/twofactor.html
 var twoFactorHTML []byte
 
-const sessionCookie = "backpack_session"
+const sessionCookie = "sober_session_http"
 
 // sessionTTL is how long a signed-in browser stays signed in. It was written
 // out as `12 * time.Hour` in the store and as `12 * 3600` in the cookie; one
@@ -600,7 +600,7 @@ func (s *server) guard(need Scope, next http.HandlerFunc) http.HandlerFunc {
 // scraper locked out by somebody else's typo.
 func (s *server) identify(r *http.Request) (caller, bool) {
 	ip := clientIP(r)
-	if c, err := r.Cookie(sessionCookie); err == nil && s.sessions.valid(c.Value) {
+	if c, err := r.Cookie(authCookieName(r, sessionCookie)); err == nil && s.sessions.valid(c.Value) {
 		// The session is the panel password, which is full access. Named
 		// operators at lesser levels are a separate credential — a token —
 		// because a second password on the same login form would be a second
@@ -650,7 +650,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		// The second step of a two-factor login: the password was accepted a
 		// moment ago and this is the code for it. Checked first, because a
 		// request carrying a pending token is never a password attempt.
-		if c, err := r.Cookie(twoFactorCookie); err == nil && s.pending.attempt(c.Value, ip) {
+		if c, err := r.Cookie(authCookieName(r, twoFactorCookie)); err == nil && s.pending.attempt(c.Value, ip) {
 			s.authMu.Lock()
 			validCode := s.pending.reserved(c.Value, ip) && checkSecondFactor(r.FormValue("code"))
 			if validCode {
@@ -717,7 +717,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A GET with a live pending token is somebody who reloaded the code page.
-	if c, err := r.Cookie(twoFactorCookie); err == nil && s.pending.valid(c.Value, clientIP(r)) {
+	if c, err := r.Cookie(authCookieName(r, twoFactorCookie)); err == nil && s.pending.valid(c.Value, clientIP(r)) {
 		s.serveSecondFactorPage(w, r, http.StatusOK)
 		return
 	}
@@ -741,7 +741,7 @@ func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		redirectTo(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(authCookieName(r, sessionCookie)); err == nil {
 		s.sessions.destroy(c.Value)
 	}
 	http.SetCookie(w, clearedCookie(r, sessionCookie))

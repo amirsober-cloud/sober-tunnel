@@ -2,7 +2,7 @@ name: Build and validate release
 
 on:
   push:
-    tags: ["v0.2.7"]
+    tags: ["v0.2.8"]
   workflow_dispatch:
     inputs:
       version:
@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == push ]]; then
-            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Independent Camouflage core, boot recovery, traffic charts and HTTP default without a certificate."
+            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Fix HTTP login loops after switching from HTTPS by separating session cookies."
             echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -68,7 +68,7 @@ jobs:
       - name: Run Linux engine and native pairing checks
         run: |
           go test -race -timeout 3m ./engines/camouflage/internal/ingress ./engines/camouflage/tooling ./engines/backpack/internal/mimicmgr
-          go test -timeout 3m ./engines/backpack/internal/webui -run 'Test(LegacyAutomaticTLSUsesHTTPWithoutCertificate|ConfiguredACMEKeepsHTTPS)$'
+          go test -timeout 3m ./engines/backpack/internal/webui -run 'Test(LegacyAutomaticTLSUsesHTTPWithoutCertificate|ConfiguredACMEKeepsHTTPS|HTTPLoginSurvivesLegacySecureCookie|HTTPAndHTTPSUseDifferentCookieNames)$'
           go test -timeout 3m ./...
           go vet ./...
           go test -race -timeout 3m ./internal/connection ./internal/forward ./internal/mux

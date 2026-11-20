@@ -30,7 +30,15 @@ const maxLoginBody = 8 << 10
 // Not setting Secure behind such a proxy costs nothing the proxy has not
 // already decided; setting it wrongly costs the panel.
 func secureRequest(r *http.Request) bool {
-	return r.TLS != nil || Load().HTTPS
+	return r.TLS != nil
+}
+
+// authCookieName isolates HTTP sessions from Secure cookies left by HTTPS.
+func authCookieName(r *http.Request, name string) string {
+	if secureRequest(r) {
+		return strings.TrimSuffix(name, "_http") + "_https"
+	}
+	return name
 }
 
 // authCookie builds a panel cookie with the attributes every one of them
@@ -38,7 +46,7 @@ func secureRequest(r *http.Request) bool {
 // sets of flags; one constructor is how they stay in agreement.
 func authCookie(r *http.Request, name, value string, ttl time.Duration) *http.Cookie {
 	return &http.Cookie{
-		Name:     name,
+		Name:     authCookieName(r, name),
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
@@ -57,7 +65,7 @@ func authCookie(r *http.Request, name, value string, ttl time.Duration) *http.Co
 // replaced or the browser keeps the original alongside it.
 func clearedCookie(r *http.Request, name string) *http.Cookie {
 	return &http.Cookie{
-		Name:     name,
+		Name:     authCookieName(r, name),
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

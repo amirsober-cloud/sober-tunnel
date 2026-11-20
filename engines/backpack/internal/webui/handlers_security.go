@@ -197,7 +197,7 @@ func clientIP(r *http.Request) string {
 
 func (s *server) handleSessions(w http.ResponseWriter, r *http.Request) {
 	cur := ""
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(authCookieName(r, sessionCookie)); err == nil {
 		cur = c.Value
 	}
 	switch r.Method {

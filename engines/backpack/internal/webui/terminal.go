@@ -98,7 +98,7 @@ func dim(q string, def uint16) uint16 {
 
 func (s *server) handleTerminal(w http.ResponseWriter, r *http.Request) {
 	// A browser session and nothing else.
-	c, err := r.Cookie(sessionCookie)
+	c, err := r.Cookie(authCookieName(r, sessionCookie))
 	if bearer(r) != "" || err != nil {
 		http.Error(w, "the terminal is only for a signed-in browser, never a token", http.StatusForbidden)
 		return

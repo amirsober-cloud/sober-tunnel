@@ -12,6 +12,7 @@ import (
 	"github.com/backpack/backpack/internal/localproxy"
 	"github.com/backpack/backpack/internal/manage"
 	"github.com/backpack/backpack/internal/metrics"
+	"github.com/backpack/backpack/internal/mimicmgr"
 	"github.com/backpack/backpack/internal/sysstat"
 	"github.com/backpack/backpack/internal/utils/network"
 )
@@ -21,9 +22,10 @@ import (
 
 // SystemStats is the payload for /api/stats.
 type SystemStats struct {
-	Hostname string `json:"hostname"`
-	OS       string `json:"os"`
-	Uptime   string `json:"uptime"`
+	Camouflage mimicmgr.TrafficSummary `json:"camouflage"`
+	Hostname   string                  `json:"hostname"`
+	OS         string                  `json:"os"`
+	Uptime     string                  `json:"uptime"`
 
 	IPv4 string `json:"ipv4"`
 	IPv6 string `json:"ipv6"`
@@ -322,6 +324,11 @@ func fillNetwork(s *SystemStats, tunnels []manage.Tunnel) {
 		in += snap.BytesIn
 		out += snap.BytesOut
 	}
+	s.Camouflage = camouflage.TrafficSummary()
+	in += s.Camouflage.Received
+	out += s.Camouflage.Sent
+	s.TunnelsTotal += s.Camouflage.Total
+	s.TunnelsRunning += s.Camouflage.Running
 	s.TotalRecv = sysstat.HumanBytes(in)
 	s.TotalSent = sysstat.HumanBytes(out)
 	s.TotalTraffic = sysstat.HumanBytes(in + out)

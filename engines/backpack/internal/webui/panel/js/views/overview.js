@@ -59,17 +59,20 @@ async function loadDayTotals(names) {
 /* Drawn as elements rather than an SVG path so each day can carry its own
    growth delay — the chart fills left to right in the order the days happened,
    which is the one thing a month of traffic has to say. */
-function dayBars() {
-  if (!dayTotals?.length) {
+function dayBars(camouflageDays = {}) {
+  const merged = new Map((dayTotals || []).map(d => [d.label, d.bytes]));
+  for (const [label, value] of Object.entries(camouflageDays)) merged.set(label, (merged.get(label) || 0) + value);
+  const days = [...merged].sort(([a],[b])=>a.localeCompare(b)).map(([label, bytes])=>({label,bytes}));
+  if (!days?.length) {
     return `<div class="tk-empty">No per-day figures yet — they build up as the tunnels carry traffic.</div>`;
   }
-  const peak = Math.max(...dayTotals.map(d => d.bytes), 1);
-  return `<div class="tk-days" style="--n:${dayTotals.length}">${dayTotals.map((d, i) => {
+  const peak = Math.max(...days.map(d => d.bytes), 1);
+  return `<div class="tk-days" style="--n:${days.length}">${days.map((d, i) => {
     const h = Math.max(3, (d.bytes / peak) * 100);
     return `<i style="--h:${h.toFixed(1)}%;--i:${i}" title="${esc(d.label)} · ${esc(bytes(d.bytes))}"></i>`;
   }).join('')}</div>
-  <div class="tk-axis"><span>${esc(dayTotals[0].label)}</span><span class="sp"></span>
-    <span>${esc(dayTotals[dayTotals.length - 1].label)}</span></div>`;
+  <div class="tk-axis"><span>${esc(days[0].label)}</span><span class="sp"></span>
+    <span>${esc(days[days.length - 1].label)}</span></div>`;
 }
 
 /* ---- what is wrong, if anything ------------------------------------------ */
@@ -282,6 +285,7 @@ export function overview(ctx) {
   const view = $('#view');
   let fleet = null;
   let backup = null;
+  let camPrevious=null, camSamples=[];
   let counted = false;   // the total has had its one run
 
   /* The page is built once and then edited.
@@ -321,7 +325,7 @@ export function overview(ctx) {
           <div class="tk-split" aria-hidden="true">
             <i class="up"></i><i class="dn"></i>
           </div>
-          <div id="ovDays"></div>
+          <div id="ovDays"></div><section style="padding:16px"><a href="#/mimic">Camouflage traffic →</a><p id="ovCamRate">Waiting for Camouflage traffic…</p><svg viewBox="0 0 600 120" role="img" aria-label="Camouflage sent and received bytes per second" style="width:100%;height:120px"><polyline id="ovCamTx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="ovCamRx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received</small></section>
         </div>
 
         ${quickActions()}
@@ -364,7 +368,8 @@ export function overview(ctx) {
     const state = store.get();
     const s = state.stats || {};
     const tuns = state.tunnels || [];
-    const up = tuns.filter(isUp).length;
+    const up = tuns.filter(isUp).length + (s.camouflage?.running || 0);
+    const tunnelCount = tuns.length + (s.camouflage?.total || 0);
     const nodes = fleet?.nodes || [];
     const onlineNodes = nodes.filter(n => n.online).length;
     const bad = troubles(state, fleet, backup);
@@ -377,12 +382,12 @@ export function overview(ctx) {
 
     ov.classList.toggle('settled', counted);
 
-    region('ovBar', JSON.stringify([bad, up, tuns.length, onlineNodes, nodes.length]),
+    region('ovBar', JSON.stringify([bad, up, tunnelCount, onlineNodes, nodes.length]),
       bad.length
         ? bad.map(t => `<button class="ov-pill ${t.k}" data-to="${esc(t.to)}" title="${esc(t.s)}">
              <span class="ov-dot"></span>${esc(t.b)}</button>`).join('')
         : `<span class="ov-pill ok"><span class="ov-dot"></span>
-             ${up} of ${tuns.length} tunnels up${nodes.length
+             ${up} of ${tunnelCount} tunnels up${nodes.length
                ? ` · ${onlineNodes}/${nodes.length} servers connected` : ''}</span>`);
 
     region('ovFacts', JSON.stringify([s.hostname, s.version, s.os, s.location, s.isp,
@@ -392,10 +397,10 @@ export function overview(ctx) {
       s.ipv4, s.ipv4Source, s.ipv6, s.uptime, s.congestion, s.proxyEnabled,
       s.proxyRunning, s.proxyType, s.proxyPort]), facts(s));
 
-    region('ovChips', JSON.stringify([sent, recv, up, tuns.length, onlineNodes, nodes.length]),
+    region('ovChips', JSON.stringify([sent, recv, up, tunnelCount, onlineNodes, nodes.length]),
       `<span class="tk-chip"><i class="up"></i>${esc(bytes(sent))} sent</span>
        <span class="tk-chip"><i class="dn"></i>${esc(bytes(recv))} received</span>
-       <span class="tk-chip ghost">${up}/${tuns.length} tunnels</span>
+       <span class="tk-chip ghost">${up}/${tunnelCount} tunnels</span>
        ${nodes.length ? `<span class="tk-chip ghost">${onlineNodes}/${nodes.length} servers</span>` : ''}`);
 
     /* The split is two widths, so it is set rather than rebuilt. */
@@ -403,7 +408,17 @@ export function overview(ctx) {
     if (split[0]) split[0].style.setProperty('--w', `${((sent / both) * 100).toFixed(1)}%`);
     if (split[1]) split[1].style.setProperty('--w', `${((recv / both) * 100).toFixed(1)}%`);
 
-    region('ovDays', JSON.stringify(dayTotals), dayBars());
+    region('ovDays', JSON.stringify([dayTotals,s.camouflage?.days]), dayBars(s.camouflage?.days));
+    const cam=s.camouflage||{}, now=Date.now();
+    if(camPrevious && now-camPrevious.at>=1000){
+      const dt=(now-camPrevious.at)/1000;
+      camSamples.push([Math.max(0,(cam.sent||0)-camPrevious.sent)/dt,Math.max(0,(cam.received||0)-camPrevious.received)/dt]);
+      if(camSamples.length>60)camSamples.shift();
+    }
+    if(!camPrevious||now-camPrevious.at>=1000)camPrevious={at:now,sent:cam.sent||0,received:cam.received||0};
+    const rate=camSamples.at(-1)||[0,0], peak=Math.max(1,...camSamples.flat());
+    el('ovCamRate').textContent=`${bytes(rate[0])}/s sent · ${bytes(rate[1])}/s received · ${cam.running||0}/${cam.total||0} Camouflage cores running`;
+    for(const [id,index] of [['ovCamTx',0],['ovCamRx',1]])el(id).setAttribute('points',camSamples.map((v,i)=>`${i*600/59},${115-v[index]/peak*110}`).join(' '));
 
     const total = state.stats ? (Number(s.totalTrafficBytes) || 0) : null;
     countTo(el('ovTotal'), total, !counted && total > 0);

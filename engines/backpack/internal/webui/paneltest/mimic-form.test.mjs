@@ -8,3 +8,5 @@ assert.equal(flags.alias,'two');assert.equal(flags.min,'4');assert.equal(flags.m
 const foreign=savedFlags({role:'foreign',persona:'devops',egress_ip_mode:'ipv6',mimics:[{type:'ssh',port:2222},{type:'tls',port:8443}]});
 assert.equal(foreign['listen-port'],'2222');assert.equal(foreign['tls-port'],'8443');assert.equal(foreign.mimics,'ssh,tls');assert.equal(foreign['egress-mode'],'ipv6');
 console.log('Saved Camouflage form settings passed');
+assert.equal(flags['target-ip'],'2001:db8::1');
+assert.equal(savedFlags({role:'iran',foreign_nodes:[{alias:'one',endpoints:[{mimic:'ssh',target:'192.0.2.4:22'}]}]},'one')['target-ip'],'192.0.2.4');

@@ -136,8 +136,15 @@ export function mimicView(ctx) {
   get('mimic-new').addEventListener('click',fresh);
   get('mimic-refresh').addEventListener('click',()=>task(load));
   get('mimic-save').addEventListener('click',()=>task(async()=>{
-    const config=JSON.parse(get('mimic-config').value);await api.mimicAction({name:name(),action:'save',config},node);if(closed)return;
-    current=name();get('mimic-name').readOnly=true;message('Saved. Run preflight checks before starting.');await load();
+    let config=JSON.parse(get('mimic-config').value);
+    const command=get('mimic-operation').value, flags=values('mimic-form');
+    if(['edit-node','edit-foreign'].includes(command) && Object.keys(flags).some(key=>key!=='alias')){
+      const result=await api.mimicAction({name:name(),action:'prepare',command,flags,config},node);
+      if(closed)return;
+      config=result.config;get('mimic-config').value=JSON.stringify(config,null,2);
+    }
+    await api.mimicAction({name:name(),action:'save',config},node);if(closed)return;
+    current=name();get('mimic-name').readOnly=true;savedConfig=config;operation(command);message('Saved. Start the tunnel to apply the saved configuration.');await load();
   }));
   async function preflight() {
     const checks=await api.mimicAction({name:saved(),action:'preflight'},node);

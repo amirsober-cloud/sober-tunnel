@@ -2,7 +2,7 @@ name: Build and validate release
 
 on:
   push:
-    tags: ["v0.2.11"]
+    tags: ["v0.2.12"]
   workflow_dispatch:
     inputs:
       version:
@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == push ]]; then
-            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Populate saved Camouflage advanced settings and select foreign nodes when editing."
+            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Save changed Camouflage form fields directly and populate target hosts from endpoints."
             echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
             exit 0
           fi

@@ -11,6 +11,7 @@ export function savedFlags(config, alias) {
  result.mimics=[...new Set(endpoints.map(e=>e.type||e.mimic))].join(',');
  const ports={ssh:foreign?'listen-port':'ssh-port',tls:'tls-port',smtp:'smtp-port',imap:'imap-port',smtps:'smtps-port',imaps:'imaps-port',directadmin:'directadmin-port'};
  for(const e of endpoints){const type=e.type||e.mimic,port=foreign?e.port:Number(String(e.target||'').split(':').at(-1));if(ports[type]&&Number.isFinite(port))result[ports[type]]=String(port);}
+ if(!foreign && endpoints[0]?.target){const target=endpoints[0].target;result['target-ip']=target.slice(0,target.lastIndexOf(':')).replace(/^\[|\]$/g,'');}
  result['tls-servername']=endpoints.find(e=>e.server_name)?.server_name||'';
  return result;
 }

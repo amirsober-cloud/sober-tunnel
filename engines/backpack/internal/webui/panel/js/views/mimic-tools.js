@@ -1,6 +1,7 @@
 import { $, esc, copyText } from '../lib/dom.js';
 import * as api from '../api.js';
 import { go } from '../router.js';
+import { savedFlags } from '../lib/mimic-form.js';
 
 const labels = {
   'setup-foreign': 'Create foreign exit', 'setup-iran': 'Create Iran hub',
@@ -18,6 +19,7 @@ const choices = {
 
 export function mimicView(ctx) {
   let closed=false, current='', node='', catalog={}, poll=null, busy=false, job=null;
+  let savedConfig=null, selectedAlias="";
   let trafficTimer=null, trafficPrevious=null, trafficSamples=[];
   const host=$('#view');
   ctx.setTeardown(()=>{closed=true; clearTimeout(poll); clearTimeout(trafficTimer);});
@@ -26,7 +28,7 @@ export function mimicView(ctx) {
     <label>Server<select id="mimic-node"><option value="">This server</option></select></label>
     <div class="mimic-layout"><section><h2>Camouflage tunnels</h2><div id="mimic-list">Loading…</div><button id="mimic-refresh">Refresh</button><button id="mimic-new">New tunnel</button><a href="#/servers">Manage servers</a></section>
     <section><h2 id="mimic-heading">New tunnel</h2><label>Instance name<input id="mimic-name" maxlength="48" placeholder="foreign-main" autocomplete="off"></label>
-      <label>Setup / edit operation<select id="mimic-operation"></select></label>
+      <label id="mimic-edit-node-label" hidden>Foreign node to edit<select id="mimic-edit-node"></select></label><label>Setup / edit operation<select id="mimic-operation"></select></label>
       <form id="mimic-form"><div id="mimic-fields" class="mimic-fields"></div><details><summary>Advanced protocol, pool, SOCKS, TUN and gateway settings</summary><div id="mimic-advanced" class="mimic-fields"></div></details><button type="submit">Build validated preview</button></form>
       <p class="mimic-help">New exits use the native Persona defaults. Set individual protocol ports under Advanced if another service owns them. A pairing token fills the hub’s foreign IP, protocol ports and persona. SOCKS binds to 127.0.0.1 by default.</p>
       <details id="mimic-preview"><summary>Configuration preview / advanced JSON editor</summary><textarea id="mimic-config" spellcheck="false" rows="18"></textarea></details>
@@ -60,11 +62,20 @@ export function mimicView(ctx) {
     if(advanced)get(advanced).innerHTML=flags.filter(f=>!common.has(f.name)).map(field).join('');
   }
   function values(container) {
-    const flags={};get(container).querySelectorAll('[data-flag]').forEach(el=>{if(el.value!=='')flags[el.dataset.flag]=el.value;});return flags;
+    const flags={};get(container).querySelectorAll('[data-flag]').forEach(el=>{if(el.value!=='' && (el.dataset.original===undefined || el.value!==el.dataset.original || el.dataset.flag==='alias'))flags[el.dataset.flag]=el.value;});return flags;
   }
-  function operation(command) {get('mimic-operation').value=command;form(command,'mimic-fields','mimic-advanced');}
+  function operation(command) {
+ get('mimic-operation').value=command;form(command,'mimic-fields','mimic-advanced');
+ if(savedConfig && ['edit-node','edit-foreign'].includes(command)){
+ const flags=savedFlags(savedConfig,selectedAlias);
+ for(const input of get('mimic-form').querySelectorAll('[data-flag]')){
+  if(Object.hasOwn(flags,input.dataset.flag))input.value=flags[input.dataset.flag];
+  input.dataset.original=input.value;
+ }
+ }
+}
   function fresh() {
-    clearTimeout(trafficTimer);trafficPrevious=null;trafficSamples=[];clearTimeout(poll);job=null;current='';get('mimic-name').value='';get('mimic-name').readOnly=false;
+    savedConfig=null;selectedAlias='';get('mimic-edit-node-label').hidden=true;clearTimeout(trafficTimer);trafficPrevious=null;trafficSamples=[];clearTimeout(poll);job=null;current='';get('mimic-name').value='';get('mimic-name').readOnly=false;
     get('mimic-heading').textContent='New tunnel';get('mimic-config').value='';get('mimic-job').textContent='';get('mimic-test-output').textContent='';get('mimic-xui-output').textContent='';xui=[];xuiNode.replaceChildren();output('');message('');operation('setup-foreign');
   }
   async function select(instance) {
@@ -72,6 +83,9 @@ export function mimicView(ctx) {
     clearTimeout(poll);job=null;current=result.name;get('mimic-name').value=current;get('mimic-name').readOnly=true;
     get('mimic-heading').textContent=current;get('mimic-config').value=JSON.stringify(result.config,null,2);
     clearTimeout(trafficTimer); trafficPrevious=null; trafficSamples=[]; pollTraffic(current,node);
+    savedConfig=result.config;selectedAlias=result.config.foreign_nodes?.[0]?.alias||'';
+    get('mimic-edit-node-label').hidden=result.config.role!=='iran';
+    get('mimic-edit-node').innerHTML=(result.config.foreign_nodes||[]).map(n=>`<option value="${esc(n.alias)}">${esc(n.alias)}</option>`).join('');
     operation(result.config.role==='foreign'?'edit-foreign':'edit-node');
     if(result.config.role==='iran') {
       const alias=host.querySelector('#mimic-fields [data-flag="alias"]');if(alias)alias.value=result.config.foreign_nodes?.[0]?.alias||'';
@@ -116,6 +130,7 @@ export function mimicView(ctx) {
     get('mimic-config').value=JSON.stringify(result.config,null,2);get('mimic-preview').open=true;output(result.output||'');
     message(command==='pairing'?'Pairing token exported. Treat it as a password.':'Preview validated. Review it, then save. No running configuration changed.');
   });});
+  get('mimic-edit-node').addEventListener('change',()=>{selectedAlias=get('mimic-edit-node').value;operation('edit-node');});
   get('mimic-operation').addEventListener('change',()=>operation(get('mimic-operation').value));
   get('mimic-diagnostic').addEventListener('change',()=>form(get('mimic-diagnostic').value,'mimic-test-fields'));
   get('mimic-new').addEventListener('click',fresh);

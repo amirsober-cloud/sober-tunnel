@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../panel/js/lib/mimic-form.js',import.meta.url),'utf8');
+const {savedFlags}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const config={role:'iran',foreign_nodes:[{alias:'one',min_connections:2},{alias:'two',local_socks_port:1081,socks_bind:'127.0.0.1',min_connections:4,max_connections:12,bandwidth_jitter_mbps:0,tun_enabled:true,dns_enabled:false,gateway_enabled:true,gateway_lan:['10.0.0.0/8'],endpoints:[{mimic:'tls',target:'[2001:db8::1]:443',server_name:'exit.example'}]}]};
+const flags=savedFlags(config,'two');
+assert.equal(flags.alias,'two');assert.equal(flags.min,'4');assert.equal(flags.max,'12');assert.equal(flags.jitter,'0');assert.equal(flags.dns,'false');assert.equal(flags.tun,'true');assert.equal(flags['tls-port'],'443');assert.equal(flags['gateway-lan'],'10.0.0.0/8');assert.equal(flags['tls-servername'],'exit.example');
+const foreign=savedFlags({role:'foreign',persona:'devops',egress_ip_mode:'ipv6',mimics:[{type:'ssh',port:2222},{type:'tls',port:8443}]});
+assert.equal(foreign['listen-port'],'2222');assert.equal(foreign['tls-port'],'8443');assert.equal(foreign.mimics,'ssh,tls');assert.equal(foreign['egress-mode'],'ipv6');
+console.log('Saved Camouflage form settings passed');

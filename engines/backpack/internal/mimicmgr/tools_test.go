@@ -102,7 +102,7 @@ func TestStartRejectsEngineValidationFailureBeforeSystemd(t *testing.T) {
 	m := testManager(t)
 	writeHub(t, m, 1081)
 	m.Run = func(_ context.Context, bin string, args ...string) ([]byte, error) {
-		if bin == m.Binary {
+		if bin == m.nativeBinary() {
 			return []byte("invalid endpoint"), fmt.Errorf("invalid")
 		}
 		t.Fatal("systemctl called before validation passed")

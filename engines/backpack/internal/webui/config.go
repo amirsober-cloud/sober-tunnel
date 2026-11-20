@@ -166,6 +166,10 @@ func Load() Config {
 	// factor and the access tokens are in it. EnsurePassword then starts a
 	// fresh one — closed, with a new password — rather than an open panel.
 	app.WarnState(withConfigLock(func() error { return app.LoadState(configPath(), &c) }))
+	// Legacy installs enabled self-signed TLS automatically. Stay on HTTP until a certificate source is configured.
+	if c.HTTPS && c.TLSDomain == "" && !c.OwnCert() {
+		c.HTTPS = false
+	}
 	if c.Port == 0 {
 		c.Port = app.WebUIPort
 	}
@@ -204,6 +208,10 @@ func readConfig() (Config, error) {
 		if err := json.Unmarshal(b, &c); err != nil {
 			return Config{}, err
 		}
+	}
+	// Legacy installs enabled self-signed TLS automatically. Stay on HTTP until a certificate source is configured.
+	if c.HTTPS && c.TLSDomain == "" && !c.OwnCert() {
+		c.HTTPS = false
 	}
 	if c.Port == 0 {
 		c.Port = app.WebUIPort

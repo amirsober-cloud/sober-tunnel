@@ -66,6 +66,12 @@ func executeMimic(req Request) Response {
 			return failf("%v", err)
 		}
 		return okBody(items)
+	case "traffic":
+		data, err := m.Traffic(r.Name)
+		if err != nil {
+			return failf("%v", err)
+		}
+		return okBody(data)
 	case "read":
 		cfg, err := m.Read(r.Name)
 		if err != nil {

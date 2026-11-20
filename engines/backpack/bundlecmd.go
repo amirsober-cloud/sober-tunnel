@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/backpack/backpack/internal/app"
 	"github.com/backpack/backpack/internal/bundle"
+	"github.com/backpack/backpack/internal/mimicmgr"
 	"os"
 	"path/filepath"
 )
@@ -19,5 +21,16 @@ func installBundleCommand(args []string) (bool, error) {
 	if os.Geteuid() != 0 {
 		return true, fmt.Errorf("bundle installation requires root")
 	}
-	return true, bundle.InstallPair(filepath.Join(args[1], "sober-tunnel"), filepath.Join(args[1], "sober-tunnel-mimic"), app.BinPath, app.NativeBinPath)
+	err := bundle.InstallPair(filepath.Join(args[1], "sober-tunnel"), filepath.Join(args[1], "sober-tunnel-mimic"), app.BinPath, app.NativeBinPath)
+	if err != nil {
+		return true, err
+	}
+	if err := mimicmgr.Default.Reconcile(context.Background()); err != nil {
+		return true, fmt.Errorf("binaries installed but camouflage units could not be migrated: %w", err)
+	}
+	_, failed := mimicmgr.Default.RestartActive(context.Background())
+	if failed > 0 {
+		return true, fmt.Errorf("binaries installed but %d camouflage services failed to restart", failed)
+	}
+	return true, nil
 }

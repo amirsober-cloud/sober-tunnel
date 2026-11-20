@@ -18,8 +18,9 @@ const choices = {
 
 export function mimicView(ctx) {
   let closed=false, current='', node='', catalog={}, poll=null, busy=false, job=null;
+  let trafficTimer=null, trafficPrevious=null, trafficSamples=[];
   const host=$('#view');
-  ctx.setTeardown(()=>{closed=true; clearTimeout(poll);});
+  ctx.setTeardown(()=>{closed=true; clearTimeout(poll); clearTimeout(trafficTimer);});
   host.innerHTML=`<section class="mimic-page">
     <header><a href="#/tunnels">← Tunnels</a><h1>Camouflage</h1><p>Create both ends, pair them, then connect x-ui to the hub’s local SOCKS5 bridge.</p></header>
     <label>Server<select id="mimic-node"><option value="">This server</option></select></label>
@@ -31,7 +32,7 @@ export function mimicView(ctx) {
       <details id="mimic-preview"><summary>Configuration preview / advanced JSON editor</summary><textarea id="mimic-config" spellcheck="false" rows="18"></textarea></details>
       <div class="mimic-actions"><button id="mimic-save">Validate and save</button><button id="mimic-preflight">Preflight checks</button><button data-mimic-action="start">Start</button><button data-mimic-action="stop">Stop</button><button data-mimic-action="restart">Restart</button><button id="mimic-logs">Logs</button><button data-mimic-action="delete">Delete</button></div>
       <p id="mimic-result" role="status" aria-live="polite"></p><pre id="mimic-output" tabindex="0"></pre><button id="mimic-copy">Copy result</button>
-      <section><h3>Diagnostics</h3><p>Tests run on the selected server and use the saved configuration. A completed run may contain failed checks; read each result.</p><label>Diagnostic<select id="mimic-diagnostic"></select></label><div id="mimic-test-fields" class="mimic-fields"></div><button id="mimic-run">Run diagnostic</button><p id="mimic-job" role="status"></p><pre id="mimic-test-output" tabindex="0"></pre></section>
+      <section><h3>Camouflage traffic</h3><p id="mimic-traffic-status">Select an instance to view traffic.</p><svg id="mimic-traffic-chart" viewBox="0 0 600 140" role="img" aria-label="Camouflage send and receive rates" style="width:100%;height:140px"><polyline id="mimic-tx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="mimic-rx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received · bytes/s · recent 2 minutes</small></section><section><h3>Diagnostics</h3><p>Tests run on the selected server and use the saved configuration. A completed run may contain failed checks; read each result.</p><label>Diagnostic<select id="mimic-diagnostic"></select></label><div id="mimic-test-fields" class="mimic-fields"></div><button id="mimic-run">Run diagnostic</button><p id="mimic-job" role="status"></p><pre id="mimic-test-output" tabindex="0"></pre></section>
       <section><h3>Connect x-ui / 3x-ui</h3><p>On the Iran hub, add a SOCKS outbound to 127.0.0.1 and this node’s SOCKS port. Route the chosen inbound tags to that outbound, keeping domestic/direct rules ahead of it. Use remote DNS / AsIs. Both processes must share the same network namespace; Docker bridge containers have their own 127.0.0.1.</p><button id="mimic-xui">Generate x-ui settings</button><label>Xray settings format<select id="mimic-xui-format"><option value="legacy_outbound">3x-ui / servers[]</option><option value="modern_outbound">Current Xray / address + port</option></select></label><pre id="mimic-xui-output" tabindex="0"></pre><button id="mimic-xui-copy">Copy x-ui settings</button></section>
       <details><summary>Host operations</summary><p>These apply to the selected server. Review ports before changing OpenSSH. Each action requires its own confirmation.</p><button data-host="move-ssh">Move OpenSSH to saved decoy port</button><button data-host="open-firewall">Open saved exit listen ports</button><button data-host="bbr">Enable BBR</button></details>
     </section></div></section>`;
@@ -63,13 +64,14 @@ export function mimicView(ctx) {
   }
   function operation(command) {get('mimic-operation').value=command;form(command,'mimic-fields','mimic-advanced');}
   function fresh() {
-    clearTimeout(poll);job=null;current='';get('mimic-name').value='';get('mimic-name').readOnly=false;
+    clearTimeout(trafficTimer);trafficPrevious=null;trafficSamples=[];clearTimeout(poll);job=null;current='';get('mimic-name').value='';get('mimic-name').readOnly=false;
     get('mimic-heading').textContent='New tunnel';get('mimic-config').value='';get('mimic-job').textContent='';get('mimic-test-output').textContent='';get('mimic-xui-output').textContent='';xui=[];xuiNode.replaceChildren();output('');message('');operation('setup-foreign');
   }
   async function select(instance) {
     const result=await api.mimicSettings(instance,node);if(closed)return;
     clearTimeout(poll);job=null;current=result.name;get('mimic-name').value=current;get('mimic-name').readOnly=true;
     get('mimic-heading').textContent=current;get('mimic-config').value=JSON.stringify(result.config,null,2);
+    clearTimeout(trafficTimer); trafficPrevious=null; trafficSamples=[]; pollTraffic(current,node);
     operation(result.config.role==='foreign'?'edit-foreign':'edit-node');
     if(result.config.role==='iran') {
       const alias=host.querySelector('#mimic-fields [data-flag="alias"]');if(alias)alias.value=result.config.foreign_nodes?.[0]?.alias||'';
@@ -79,6 +81,27 @@ export function mimicView(ctx) {
     xui=[];xuiNode.replaceChildren();
     get('mimic-diagnostic').value=result.config.role==='foreign'?'check-ip':'probe';form(get('mimic-diagnostic').value,'mimic-test-fields');
     try {const previous=JSON.parse(sessionStorage.getItem('sober-camouflage-job'));if(previous?.name===current&&previous.node===node){job=previous;pollJob();}}catch{}
+  }
+  async function pollTraffic(instance, server) {
+    try {
+      const url='/api/mimic?name='+encodeURIComponent(instance)+'&traffic=1'+(server?'&node='+encodeURIComponent(server):'');
+      const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+      if(!response.ok) throw new Error('Traffic unavailable');
+      const data=await response.json();
+      if(closed||current!==instance||node!==server)return;
+      const fresh=Date.now()-data.timestamp<5000;
+      if(fresh&&trafficPrevious&&data.started===trafficPrevious.started&&data.timestamp>trafficPrevious.timestamp){
+        const seconds=(data.timestamp-trafficPrevious.timestamp)/1000;
+        trafficSamples.push([Math.max(0,data.sent-trafficPrevious.sent)/seconds,Math.max(0,data.received-trafficPrevious.received)/seconds]);
+        if(trafficSamples.length>60)trafficSamples.shift();
+      }
+      trafficPrevious=fresh?data:null;
+      const last=trafficSamples.at(-1)||[0,0];
+      get('mimic-traffic-status').textContent=fresh?`Sent ${Math.round(last[0]).toLocaleString()} B/s · Received ${Math.round(last[1]).toLocaleString()} B/s · Total sent ${Number(data.sent).toLocaleString()} B · received ${Number(data.received).toLocaleString()} B (since core start)`:'Core stopped or metrics unavailable';
+      const max=Math.max(1,...trafficSamples.flat());
+      for(const [id,index] of [['mimic-tx',0],['mimic-rx',1]])get(id).setAttribute('points',trafficSamples.map((v,i)=>`${i*600/59},${135-v[index]/max*130}`).join(' '));
+    }catch(e){if(!closed&&current===instance&&node===server)get('mimic-traffic-status').textContent=e.message;}
+    if(!closed&&current===instance&&node===server)trafficTimer=setTimeout(()=>pollTraffic(instance,server),2000);
   }
   async function load() {
     const items=await api.mimicInstances(node);if(closed)return;

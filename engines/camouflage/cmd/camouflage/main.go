@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/securestream"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ import (
 // ip_forward), with a RouterOS-7.22 ip-rule-priority guard. Validated end-to-end on
 // a real RouterOS CHR and on a plain Linux router. Wire protocol UNCHANGED since
 // v0.8.0; gateway/TUN are hub-side only, so v0.11 hubs interoperate with v0.9 foreigns.
-const AppVersion = "v0.2.6"
+const AppVersion = "v0.2.7"
 
 func main() {
 	if len(os.Args) == 3 && os.Args[1] == "panel-job" {
@@ -82,6 +83,9 @@ func main() {
 	// dashboard's Debug option launches this as a subprocess so Ctrl+C stops just
 	// the daemon and returns to the menu (see runInterruptible).
 	if *foreground {
+		if *configPath != "" {
+			securestream.StartMetrics(*configPath + ".traffic.json")
+		}
 		cfg, err := config.LoadConfig()
 		if err != nil {
 			fail("no configuration to run: %v", err)

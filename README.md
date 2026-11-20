@@ -11,8 +11,9 @@ A unified management panel and executable for multiple tunnel engines.
   editable, including advanced fields. Both ends must run this combined build
   to manage camouflage through the fleet API.
 
-The integrated entrypoint lives in `engines/backpack`; `engines/camouflage/engine`
-exposes the second core to the same binary. Each tunnel runs in its own process.
+The management entrypoint lives in `engines/backpack`. Camouflage instances run
+the independent `sober-tunnel-mimic --foreground --config <file>` executable,
+with a separate systemd service per instance. The panel manages both engines.
 The original `cmd/client` and `cmd/server` are retained as the earlier prototype;
 they are not the entrypoint for the integrated product.
 

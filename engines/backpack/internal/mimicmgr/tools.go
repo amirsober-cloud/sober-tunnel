@@ -149,7 +149,7 @@ func (m *Manager) Prepare(ctx context.Context, r ToolRequest) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if out, e := m.command(ctx, m.Binary, "--check-mimic", "--mimic-config", path); e != nil {
+	if out, e := m.command(ctx, m.nativeBinary(), "--check-config", "--config", path); e != nil {
 		return nil, fmt.Errorf("configuration validation: %s", out)
 	}
 	return map[string]any{"config": json.RawMessage(data), "output": output.String()}, nil

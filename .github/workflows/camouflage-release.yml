@@ -1,6 +1,8 @@
 name: Build and validate release
 
 on:
+  push:
+    tags: ["v0.2.7"]
   workflow_dispatch:
     inputs:
       version:
@@ -18,13 +20,18 @@ jobs:
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
     steps:
       - name: Resolve draft release source
         id: source
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${{ github.event_name }}" == push ]]; then
+            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Independent Camouflage core, boot recovery, traffic charts and HTTP default without a certificate."
+            echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
           python3 - <<'PY'
@@ -61,6 +68,7 @@ jobs:
       - name: Run Linux engine and native pairing checks
         run: |
           go test -race -timeout 3m ./engines/camouflage/internal/ingress ./engines/camouflage/tooling ./engines/backpack/internal/mimicmgr
+          go test -timeout 3m ./engines/backpack/internal/webui -run 'Test(LegacyAutomaticTLSUsesHTTPWithoutCertificate|ConfiguredACMEKeepsHTTPS)$'
           go test -timeout 3m ./...
           go vet ./...
           go test -race -timeout 3m ./internal/connection ./internal/forward ./internal/mux
@@ -91,5 +99,5 @@ jobs:
 
       - name: Verify published release through the updater
         env:
-          RELEASE_VERIFICATION_TAG: ${{ inputs.version }}
+          RELEASE_VERIFICATION_TAG: ${{ inputs.version || github.ref_name }}
         run: go test -v -count=1 -timeout 3m ./engines/backpack/internal/manage -run '^TestPublishedReleaseSignatureAndArchive$'

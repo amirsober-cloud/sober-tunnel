@@ -19,7 +19,7 @@ if [[ "${SOBER_ENGINE_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
 if [[ ! -f /etc/sober-tunnel/webui.json ]]; then
-  (umask 077; printf '%s\n' '{"https":true}' > /etc/sober-tunnel/webui.json)
+  (umask 077; printf '%s\n' '{"https":false}' > /etc/sober-tunnel/webui.json)
 fi
 cat > /etc/systemd/system/sober-tunnel-webui.service <<'UNIT'
 [Unit]

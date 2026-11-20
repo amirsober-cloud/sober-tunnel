@@ -35,6 +35,15 @@ func (s *server) handleMimic(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid instance name", 400)
 			return
 		}
+		if r.URL.Query().Get("traffic") == "1" {
+			data, err := camouflage.Traffic(name)
+			if err != nil {
+				http.Error(w, "traffic unavailable", 404)
+				return
+			}
+			writeJSON(w, data)
+			return
+		}
 		if r.URL.Query().Get("logs") == "1" {
 			logs, err := camouflage.Logs(r.Context(), name)
 			if err != nil {
@@ -111,6 +120,9 @@ func (s *server) handleRemoteMimic(w http.ResponseWriter, r *http.Request, remot
 		req.Action = "list"
 		if req.Name != "" {
 			req.Action = "read"
+			if r.URL.Query().Get("traffic") == "1" {
+				req.Action = "traffic"
+			}
 			if r.URL.Query().Get("logs") == "1" {
 				req.Action = "logs"
 			}

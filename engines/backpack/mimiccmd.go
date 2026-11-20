@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/engine"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,7 +26,14 @@ func mimicCommand(args []string) (bool, error) {
 		return true, fmt.Errorf("--mimic-config <file> is required")
 	}
 	if *check {
-		return true, engine.Check(*path)
+		_, err := config.LoadFile(*path)
+		return true, err
 	}
-	return true, engine.Run(*path)
+	binary, err := os.Executable()
+	if err != nil {
+		return true, err
+	}
+	command := exec.Command(filepath.Join(filepath.Dir(binary), "sober-tunnel-mimic"), "--foreground", "--config", *path)
+	command.Stdin, command.Stdout, command.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return true, command.Run()
 }

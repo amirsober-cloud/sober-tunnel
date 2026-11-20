@@ -274,6 +274,7 @@ func (c *SecureConn) Write(p []byte) (int, error) {
 		if err := c.writeChunk(p[total:end]); err != nil {
 			return total, err
 		}
+		sentBytes.Add(uint64(end - total))
 		total = end
 	}
 	return total, nil
@@ -314,6 +315,7 @@ func (c *SecureConn) readChunk() ([]byte, error) {
 			return nil, err
 		}
 	}
+	receivedBytes.Add(uint64(len(plain)))
 	return plain, nil
 }
 

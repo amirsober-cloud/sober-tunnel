@@ -161,7 +161,7 @@ func (m *Manager) Save(ctx context.Context, name string, data json.RawMessage) e
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if out, err := m.command(ctx, m.Binary, "--check-mimic", "--mimic-config", tmp); err != nil {
+	if out, err := m.command(ctx, m.nativeBinary(), "--check-config", "--config", tmp); err != nil {
 		// Engine validation messages contain field names, never config values.
 		msg := strings.TrimSpace(string(out))
 		if len(msg) > 512 {
@@ -220,7 +220,7 @@ func (m *Manager) UnitFor(name string) string {
 		s = strings.ReplaceAll(s, "$", "$$")
 		return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
 	}
-	return fmt.Sprintf("[Unit]\nDescription=sober-tunnel camouflage (%s)\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nExecStart=%s --mimic-config %s\nRestart=on-failure\nRestartSec=3\nTimeoutStopSec=30\nLimitNOFILE=1048576\nUMask=0077\n\n[Install]\nWantedBy=multi-user.target\n", name, quote(m.Binary), quote(m.configPath(name)))
+	return fmt.Sprintf("[Unit]\nDescription=sober-tunnel camouflage (%s)\nAfter=network-online.target\nWants=network-online.target\nStartLimitIntervalSec=0\n\n[Service]\nType=simple\nExecStart=%s --foreground --config %s\nRestart=always\nRestartSec=5\nTimeoutStopSec=30\nLimitNOFILE=1048576\nUMask=0077\n\n[Install]\nWantedBy=multi-user.target\n", name, quote(m.nativeBinary()), quote(m.configPath(name)))
 }
 
 func (m *Manager) Action(ctx context.Context, name, action string) error {
@@ -239,6 +239,9 @@ func (m *Manager) Action(ctx context.Context, name, action string) error {
 	case "stop":
 		args = []string{"disable", "--now", m.unit(name)}
 	case "restart":
+		if _, err := m.command(ctx, "systemctl", "enable", m.unit(name)); err != nil {
+			return fmt.Errorf("cannot enable instance at boot: %w", err)
+		}
 		args = []string{"restart", m.unit(name)}
 	case "delete":
 		if _, err := m.command(ctx, "systemctl", "disable", "--now", m.unit(name)); err != nil {
@@ -255,12 +258,20 @@ func (m *Manager) Action(ctx context.Context, name, action string) error {
 		return errors.New("unknown action")
 	}
 	if action == "start" || action == "restart" {
-		if out, err := m.command(ctx, m.Binary, "--check-mimic", "--mimic-config", m.configPath(name)); err != nil {
+		if out, err := m.command(ctx, m.nativeBinary(), "--check-config", "--config", m.configPath(name)); err != nil {
 			message := strings.TrimSpace(string(out))
 			if len(message) > 512 {
 				message = message[:512]
 			}
 			return fmt.Errorf("cannot start invalid configuration: %s", message)
+		}
+	}
+	if action == "start" || action == "restart" {
+		if err := atomicWrite(filepath.Join(m.UnitDir, m.unit(name)), []byte(m.UnitFor(name)), 0644); err != nil {
+			return fmt.Errorf("cannot update service unit: %w", err)
+		}
+		if _, err := m.command(ctx, "systemctl", "daemon-reload"); err != nil {
+			return fmt.Errorf("cannot reload service unit: %w", err)
 		}
 	}
 	if _, err := m.command(ctx, "systemctl", args...); err != nil {

@@ -427,7 +427,8 @@ export function settingsView(ctx) {
        * preview's made-up domain on the preview's port.
        */
       const certOpts = [...root.querySelectorAll('.opt2[data-mode]')];
-      let certMode = 'self';
+      let certMode = 'http';
+      certOpts.filter(o => o.dataset.mode === 'self').forEach(o => { o.hidden = true; o.remove(); });
       /* Held, not looked up: the label changes with the mode, and finding it by
          its text again afterwards finds nothing. */
       const applyCertBtn = byText(/^apply certificate$/i)[0];
@@ -504,7 +505,7 @@ export function settingsView(ctx) {
          one question, and they can differ. */
       let certSnap = val(cert);
       if (certSnap) {
-        certMode = certSnap.mode || 'self';
+        certMode = certSnap.mode || 'http';
         const d = root.querySelector('[name="domain"]');
         if (d) d.value = certSnap.domain || certSnap.selfHost || '';
         const e2 = root.querySelector('[name="email"]');

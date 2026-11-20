@@ -14,7 +14,7 @@ func (m *Manager) Names() []string {
 	entries, _ := os.ReadDir(m.Dir)
 	var names []string
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") && !strings.HasSuffix(e.Name(), ".traffic.json") {
 			name := strings.TrimSuffix(e.Name(), ".json")
 			if CheckName(name) == nil {
 				names = append(names, name)
@@ -30,7 +30,7 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 	defer m.mu.Unlock()
 	names := m.Names()
 	for _, name := range names {
-		if _, err := m.command(ctx, m.Binary, "--check-mimic", "--mimic-config", m.configPath(name)); err != nil {
+		if _, err := m.command(ctx, m.nativeBinary(), "--check-config", "--config", m.configPath(name)); err != nil {
 			return err
 		}
 		if err := atomicWrite(filepath.Join(m.UnitDir, m.unit(name)), []byte(m.UnitFor(name)), 0644); err != nil {

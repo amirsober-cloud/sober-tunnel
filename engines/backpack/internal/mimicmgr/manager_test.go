@@ -49,7 +49,7 @@ func TestValidationFailurePreservesSavedConfiguration(t *testing.T) {
 	unit, _ := os.ReadFile(filepath.Join(m.UnitDir, m.unit("exit")))
 	previous := m.Run
 	m.Run = func(ctx context.Context, bin string, args ...string) ([]byte, error) {
-		if bin == m.Binary {
+		if bin == m.nativeBinary() {
 			return []byte("invalid endpoint"), errors.New("invalid")
 		}
 		return previous(ctx, bin, args...)
@@ -137,7 +137,7 @@ func TestSingleBinaryUnitAndTemporaryFileCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	unit, _ := os.ReadFile(filepath.Join(m.UnitDir, m.unit("exit")))
-	if !strings.Contains(string(unit), `"/usr/local/bin/sober-tunnel" --mimic-config`) {
+	if !strings.Contains(string(unit), `sober-tunnel-mimic" --foreground --config`) {
 		t.Fatalf("wrong executable: %s", unit)
 	}
 	entries, _ := os.ReadDir(m.Dir)

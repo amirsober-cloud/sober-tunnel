@@ -198,7 +198,7 @@ func (s *server) applyPanelCert(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("%q is not a valid domain or IP", domain), http.StatusBadRequest)
 			return
 		}
-		next.HTTPS, next.TLSDomain, next.TLSEmail, next.TLSSelfHost = true, "", "", domain
+		next.HTTPS, next.TLSDomain, next.TLSEmail, next.TLSSelfHost = false, "", "", ""
 	case "acme":
 		if err := validateACME(domain, c.Port); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

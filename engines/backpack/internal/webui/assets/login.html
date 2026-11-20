@@ -154,7 +154,8 @@
       <h1>sober-tunnel</h1>
       <div class="sub" id="sub">Sign in to the panel</div>
     </div>
-    <form method="post" action="__BASE_PATH__/login">
+    <form method="post" action="__BASE_PATH__/login" autocomplete="on">
+      <input type="text" name="username" value="admin" autocomplete="username" hidden>
       <label class="lb" for="pw" id="pwlabel">Access password</label>
       <div class="field">
         <input id="pw" name="password" type="password" maxlength="128"

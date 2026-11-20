@@ -47,3 +47,30 @@ func TestAutomaticStartFailureRetainsRecoverableConfiguration(t *testing.T) {
 		t.Fatal("lost recoverable configuration", err)
 	}
 }
+
+func TestRestartEnablesBootAndRefreshesUnit(t *testing.T) {
+	m := testManager(t)
+	ctx := context.Background()
+	if err := m.Save(ctx, "exit", []byte(`{"role":"foreign"}`)); err != nil {
+		t.Fatal(err)
+	}
+	var calls []string
+	previous := m.Run
+	m.Run = func(ctx context.Context, bin string, args ...string) ([]byte, error) {
+		if bin == "systemctl" {
+			calls = append(calls, strings.Join(args, " "))
+		}
+		return previous(ctx, bin, args...)
+	}
+	if err := m.Action(ctx, "exit", "restart"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(calls, ";") != "enable sober-mimic-exit.service;daemon-reload;restart sober-mimic-exit.service" {
+		t.Fatal(calls)
+	}
+	for _, setting := range []string{"After=network-online.target", "StartLimitIntervalSec=0", "Restart=always", "RestartSec=5", "WantedBy=multi-user.target"} {
+		if !strings.Contains(m.UnitFor("exit"), setting) {
+			t.Fatalf("missing %s", setting)
+		}
+	}
+}

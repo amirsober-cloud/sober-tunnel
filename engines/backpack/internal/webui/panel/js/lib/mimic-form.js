@@ -15,3 +15,15 @@ export function savedFlags(config, alias) {
  result['tls-servername']=endpoints.find(e=>e.server_name)?.server_name||'';
  return result;
 }
+export function pairingFlags(text) {
+ const value=text.trim();
+ if(/^[a-f0-9]{32}$/i.test(value))return null;
+ const token=JSON.parse(atob(value.replaceAll('-','+').replaceAll('_','/')));
+ if(token.v!==2||!token.ip||!token.eps||!/^[a-f0-9]{32}$/i.test(token.auth||''))throw new Error('Paste the full Pairing token exported by the foreign server.');
+ const flags={'target-ip':token.ip,mimics:Object.keys(token.eps).join(','),'tls-servername':token.sni||''};
+ for(const [type,port] of Object.entries(token.eps)){
+ if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid pairing port');
+ flags[type+'-port']=String(port);
+ }
+ return flags;
+}

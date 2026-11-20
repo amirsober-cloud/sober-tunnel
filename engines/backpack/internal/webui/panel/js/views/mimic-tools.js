@@ -1,7 +1,7 @@
 import { $, esc, copyText } from '../lib/dom.js';
 import * as api from '../api.js';
 import { go } from '../router.js';
-import { savedFlags } from '../lib/mimic-form.js';
+import { savedFlags, pairingFlags } from '../lib/mimic-form.js';
 
 const labels = {
   'setup-foreign': 'Create foreign exit', 'setup-iran': 'Create Iran hub',
@@ -57,14 +57,29 @@ export function mimicView(ctx) {
     return `<label>${esc(f.name.replaceAll('-',' '))}${input}<small>${esc(f.help)}</small></label>`;
   }
   function form(command,target,advanced) {
-    const flags=catalog[command]||[];
+    const flags=(catalog[command]||[]).map(f=>f.name==='token'&&['setup-iran','add-node'].includes(command)?{...f,help:'Paste the full Pairing token from the foreign server to import its IP, protocols and ports automatically.'}:f);
     get(target).innerHTML=flags.filter(f=>!advanced||common.has(f.name)).map(field).join('');
     if(advanced)get(advanced).innerHTML=flags.filter(f=>!common.has(f.name)).map(field).join('');
   }
   function values(container) {
     const flags={};get(container).querySelectorAll('[data-flag]').forEach(el=>{if(el.value!=='' && (el.dataset.original===undefined || el.value!==el.dataset.original || el.dataset.flag==='alias'))flags[el.dataset.flag]=el.value;});return flags;
   }
-  function operation(command) {
+  function importPairing() {
+ const command=get('mimic-operation').value;
+ if(!['setup-iran','add-node'].includes(command))return;
+ const token=get('mimic-form').querySelector('[data-flag="token"]');
+ if(!token?.value.trim())return;
+ try{
+ const flags=pairingFlags(token.value);
+ if(!flags){message('This is an authentication key only. Export a full Pairing token on the foreign server to import every protocol and custom port.');return;}
+ for(const input of get('mimic-form').querySelectorAll('[data-flag]')){
+ if(Object.hasOwn(flags,input.dataset.flag))input.value=flags[input.dataset.flag];
+ }
+ message('Foreign IP, protocols and ports imported. You can override the foreign IP before creating the preview.');
+ }catch(e){message(e.message);}
+}
+get('mimic-form').addEventListener('change',event=>{if(event.target.dataset.flag==='token')importPairing();});
+function operation(command) {
  get('mimic-operation').value=command;form(command,'mimic-fields','mimic-advanced');
  if(savedConfig && ['edit-node','edit-foreign'].includes(command)){
  const flags=savedFlags(savedConfig,selectedAlias);

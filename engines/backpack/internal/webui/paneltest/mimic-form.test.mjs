@@ -10,3 +10,8 @@ assert.equal(foreign['listen-port'],'2222');assert.equal(foreign['tls-port'],'84
 console.log('Saved Camouflage form settings passed');
 assert.equal(flags['target-ip'],'2001:db8::1');
 assert.equal(savedFlags({role:'iran',foreign_nodes:[{alias:'one',endpoints:[{mimic:'ssh',target:'192.0.2.4:22'}]}]},'one')['target-ip'],'192.0.2.4');
+const {pairingFlags}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const pairing=Buffer.from(JSON.stringify({v:2,ip:'192.0.2.4',auth:'0123456789abcdef0123456789abcdef',eps:{ssh:22,tls:243,'https-alt':2443,docker:5000,grafana:3000,prometheus:9090,smtps:465,mysql:3306,postgres:5432,imap:143}})).toString('base64url');
+const imported=pairingFlags(pairing);
+assert.equal(imported['target-ip'],'192.0.2.4');assert.equal(imported['tls-port'],'243');assert.equal(imported.mimics.split(',').length,10);assert.equal(imported['postgres-port'],'5432');
+assert.equal(pairingFlags('0123456789abcdef0123456789abcdef'),null);

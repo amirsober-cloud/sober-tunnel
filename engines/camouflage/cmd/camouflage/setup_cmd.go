@@ -378,8 +378,11 @@ func cmdAddNode(args []string) {
 	var endpoints []config.Endpoint
 	switch {
 	case isV2:
-		if *targetIP != "" || *mimics != "" || *personaFlag != "" {
-			color.Yellow("[!] v2 pairing token is self-contained; ignoring --target-ip/--mimics/--persona.")
+		if *targetIP != "" {
+			pairTok.ExitIP = strings.TrimSpace(*targetIP)
+		}
+		if *mimics != "" || *personaFlag != "" {
+			color.Yellow("[!] v2 pairing token is self-contained; using its ports and protocols; ignoring --mimics/--persona.")
 		}
 		for _, ty := range mimicTypesAll {
 			port, ok := pairTok.Endpoints[ty]

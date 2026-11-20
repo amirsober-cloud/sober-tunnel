@@ -325,7 +325,7 @@ export function overview(ctx) {
           <div class="tk-split" aria-hidden="true">
             <i class="up"></i><i class="dn"></i>
           </div>
-          <div id="ovDays"></div><section style="padding:16px"><a href="#/mimic">Camouflage traffic →</a><p id="ovCamRate">Waiting for Camouflage traffic…</p><svg viewBox="0 0 600 120" role="img" aria-label="Camouflage sent and received bytes per second" style="width:100%;height:120px"><polyline id="ovCamTx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="ovCamRx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received</small></section>
+          <div id="ovDays"></div><section style="padding:16px"><a href="#/camouflage">Camouflage traffic →</a><p id="ovCamRate">Waiting for Camouflage traffic…</p><svg viewBox="0 0 600 120" role="img" aria-label="Camouflage sent and received bytes per second" style="width:100%;height:120px"><polyline id="ovCamTx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="ovCamRx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received</small></section>
         </div>
 
         ${quickActions()}

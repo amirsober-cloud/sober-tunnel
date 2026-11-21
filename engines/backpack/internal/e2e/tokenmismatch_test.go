@@ -74,13 +74,23 @@ func TestTheServerSaysWhyItRefusedAHandshake(t *testing.T) {
 		}
 	})
 
-	// The legacy handshake must be refused just as clearly. A client that has
-	// fallen back is exactly the one most in need of being told.
-	t.Run("the older handshake is refused just as clearly", func(t *testing.T) {
+	// The handshake from before v1.7.0 is refused, and told why.
+	t.Run("a client from before v1.7.0 is told it is too old", func(t *testing.T) {
 		msg, sig := answer(t, "not-the-real-token", utils.SG_Chan)
-		if sig != utils.SG_Refused || msg != utils.RefusedBadToken {
-			t.Errorf("a legacy handshake with a wrong token answered (%q, %d), want (%q, SG_Refused)",
-				msg, sig, utils.RefusedBadToken)
+		if sig != utils.SG_Refused || msg != utils.RefusedTooOld {
+			t.Errorf("a pre-1.7 handshake answered (%q, %d), want (%q, SG_Refused)",
+				msg, sig, utils.RefusedTooOld)
+		}
+	})
+
+	// And v2.0.0's handshake under the wrong token is refused as a failed
+	// proof — the token itself never crossed the wire to be compared.
+	t.Run("a wrong token on the v2.0.0 handshake is named", func(t *testing.T) {
+		h, _ := network.PeerKeyFrom("not-the-real-token").NewPeerHello("tcp")
+		msg, sig := answer(t, h.Encode(), utils.SG_ChanAuth)
+		if sig != utils.SG_Refused || msg != utils.RefusedAuth {
+			t.Errorf("a v2.0.0 claim under the wrong token answered (%q, %d), want (%q, SG_Refused)",
+				msg, sig, utils.RefusedAuth)
 		}
 	})
 
@@ -129,18 +139,33 @@ func TestTheKCPServerAlsoSaysWhyItRefused(t *testing.T) {
 		SndWnd: 1024, RcvWnd: 1024, AckNoDelay: true,
 		DataShards: 10, ParityShards: 3,
 	}
-	session, err := network.KCPDial(fmt.Sprintf("127.0.0.1:%d", tunnelPort),
-		"the-real-token", settings)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
+	// The server is given 700 ms to bind, which a loaded CI runner did not
+	// always manage: the first datagrams met a closed port, the ICMP answer
+	// killed the connected KCP socket, and the read waited out its deadline.
+	// So a session that hears nothing is dialled again, a few times, before
+	// silence counts as the server's.
+	var (
+		msg string
+		sig byte
+		err error
+	)
+	for attempt := 1; ; attempt++ {
+		session, derr := network.KCPDial(fmt.Sprintf("127.0.0.1:%d", tunnelPort),
+			"the-real-token", settings)
+		if derr != nil {
+			t.Fatalf("dial: %v", derr)
+		}
+		if err := utils.SendBinaryTransportString(session, "not-the-real-token", utils.SG_ChanV2); err != nil {
+			session.Close()
+			t.Fatalf("sending the handshake: %v", err)
+		}
+		_ = session.SetReadDeadline(time.Now().Add(4 * time.Second))
+		msg, sig, err = utils.ReceiveBinaryTransportString(session)
+		session.Close()
+		if err == nil || attempt == 4 {
+			break
+		}
 	}
-	defer session.Close()
-
-	if err := utils.SendBinaryTransportString(session, "not-the-real-token", utils.SG_ChanV2); err != nil {
-		t.Fatalf("sending the handshake: %v", err)
-	}
-	_ = session.SetReadDeadline(time.Now().Add(8 * time.Second))
-	msg, sig, err := utils.ReceiveBinaryTransportString(session)
 	if err != nil {
 		t.Fatalf("the kcp server closed without answering (%v) — the silence that "+
 			"makes a wrong token look like an old server", err)

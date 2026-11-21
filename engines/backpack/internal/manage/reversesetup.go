@@ -427,6 +427,9 @@ func reverseClientFromLink(link ShareLink, host string) TunnelSpec {
 	// than as this side's preset would have it.
 	s.MSS = link.MSS
 	s.SimpleAuth = link.SimpleAuth
+	if link.PeerAuth {
+		s.PeerAuth = network.PeerAuthRequired
+	}
 	if link.MuxVer > 0 {
 		s.MuxVersion = link.MuxVer
 	}
@@ -452,6 +455,9 @@ func reverseClientFromLink(link ShareLink, host string) TunnelSpec {
 	// holds, in the same order.
 	s.FallbackTransports = append([]string(nil), link.Fallbacks...)
 	s.FallbackDwell = link.Dwell
+	if edge := strings.TrimSpace(link.Edge); edge != "" && isWS(link.Tr) && net.ParseIP(edge) != nil {
+		s.EdgeIP = edge
+	}
 	if managedTransport(link.Tr) {
 		managedClientFromLink(&s, link, host)
 	}

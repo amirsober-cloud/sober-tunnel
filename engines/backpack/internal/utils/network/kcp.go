@@ -80,6 +80,13 @@ type KCPSettings struct {
 	// the source is this machine's real one, so the server learns each client
 	// from the wire exactly as a UDP socket would. See pckconn_linux.go.
 	Pck *PcapCarrier
+	// Path, when set, puts the sessions under the send-side control
+	// (PathControl): a window that follows the path's queue, a paced output, a
+	// retransmission timer that waits for a queued segment, and fast
+	// retransmission of a lost fast retransmit. The reverse kcp, xdi and pck
+	// transports set it; nil leaves the session exactly as the preset tunes it.
+	// Set by EnablePathControl.
+	Path *PathControl
 	// Logf, when set, receives the startup notes: the effective MTU and FEC
 	// on both ends, and — for the pck carrier — the egress it discovered and
 	// whether the kernel-RST guard installed. It exists because a KCP tunnel that
@@ -96,6 +103,10 @@ type KCPSettings struct {
 // kernel-RST guard installed. The type assertion against it in KCPListen and
 // KCPDial simply does nothing for every other carrier.
 type pckDiagnoser interface{ PckDiag() string }
+
+// pckLogger is the pck carrier's way to say what it does on its own after
+// startup, such as reopening on a recreated interface.
+type pckLogger interface{ SetLogf(func(string, ...any)) }
 
 // logSettings emits the effective session parameters, so a mismatch between the
 // two ends — which never negotiates and so fails silently — is visible in the
@@ -133,18 +144,6 @@ var saidOnce = struct {
 	sync.Mutex
 	seen map[string]bool
 }{seen: map[string]bool{}}
-
-// resetStartupNotes forgets what has been said.
-//
-// The dedup is process-wide, which is right for a tunnel — one run, one telling
-// — and wrong for a test binary, where several tunnels are stood up in one
-// process and the second would be silent. It exists for that, and because
-// global state with no way to clear it is state that cannot be tested.
-func resetStartupNotes() {
-	saidOnce.Lock()
-	saidOnce.seen = map[string]bool{}
-	saidOnce.Unlock()
-}
 
 func sayOnce(logf func(string, ...any), format string, args ...any) {
 	line := fmt.Sprintf(format, args...)
@@ -249,6 +248,12 @@ func ApplyKCPSettings(session *kcp.UDPSession, s KCPSettings) {
 	// DSCP 46 (Expedited Forwarding) asks routers that honour it to treat the
 	// tunnel as low-latency traffic. Networks that ignore it are unaffected.
 	session.SetDSCP(46)
+	if s.Path != nil {
+		// A fast retransmission that is lost is sent again after about a round
+		// trip, not after the timer and its back-off. The rest of the path
+		// control is applied once the session is pooled (PooledKCP).
+		session.SetFastRetransmitAgain(true)
+	}
 	if s.SO_RCVBUF > 0 {
 		session.SetReadBuffer(s.SO_RCVBUF)
 	}
@@ -278,7 +283,7 @@ func KCPListen(bindAddr, token string, s KCPSettings) (*kcp.Listener, io.Closer,
 	// meaningless here, and the session tag is what separates tunnels. KCP is
 	// handed that socket and does not know the difference.
 	if s.UseICMP {
-		conn, err := newICMPServerConn(token)
+		conn, err := newICMPServerConn(token, max(s.SO_RCVBUF, s.SO_SNDBUF))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -309,6 +314,9 @@ func KCPListen(bindAddr, token string, s KCPSettings) (*kcp.Listener, io.Closer,
 		}
 		if d, ok := conn.(pckDiagnoser); ok && s.Logf != nil {
 			s.Logf("%s", d.PckDiag())
+		}
+		if l, ok := conn.(pckLogger); ok && s.Logf != nil {
+			l.SetLogf(s.Logf)
 		}
 		listener, err := kcp.ServeConn(block, s.DataShards, s.ParityShards, conn)
 		if err != nil {
@@ -373,7 +381,7 @@ func KCPDialContext(ctx context.Context, remoteAddr, token string, s KCPSettings
 
 	var session *kcp.UDPSession
 	if s.UseICMP {
-		conn, err := newICMPClientConn(token)
+		conn, err := newICMPClientConn(token, max(s.SO_RCVBUF, s.SO_SNDBUF))
 		if err != nil {
 			return nil, err
 		}
@@ -403,6 +411,9 @@ func KCPDialContext(ctx context.Context, remoteAddr, token string, s KCPSettings
 		}
 		if d, ok := conn.(pckDiagnoser); ok && s.Logf != nil {
 			s.Logf("%s", d.PckDiag())
+		}
+		if l, ok := conn.(pckLogger); ok && s.Logf != nil {
+			l.SetLogf(s.Logf)
 		}
 		session, err = ownedKCPSession(&net.UDPAddr{IP: ipAddr.IP, Port: int(carrier.Port)},
 			block, s.DataShards, s.ParityShards, conn)

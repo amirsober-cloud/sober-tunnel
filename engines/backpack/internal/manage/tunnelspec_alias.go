@@ -26,7 +26,6 @@ type ConfigChange = tunnelspec.ConfigChange
 
 // The direct and layer-3 tunnels' own specs, and which machine one is for.
 type (
-	directSpec = tunnelspec.DirectSpec
 	l3Spec     = tunnelspec.L3Spec
 	directSide = tunnelspec.DirectSide
 )
@@ -76,7 +75,6 @@ var (
 	TunnelDirection = tunnelspec.TunnelDirection
 	TunnelCarrier   = tunnelspec.TunnelCarrier
 	l3EncapLabel    = tunnelspec.L3EncapLabel
-	limitsLabel     = tunnelspec.LimitsLabel
 
 	WaitServiceActive = core.WaitServiceActive
 )

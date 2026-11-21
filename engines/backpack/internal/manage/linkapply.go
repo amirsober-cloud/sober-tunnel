@@ -10,6 +10,7 @@ import (
 
 	"github.com/backpack/backpack/internal/app"
 	"github.com/backpack/backpack/internal/optimize"
+	"github.com/backpack/backpack/internal/tunnel/l3"
 )
 
 // Building the kharej end from a setup link without a single question.
@@ -102,6 +103,15 @@ func ApplySetupLink(raw string, o LinkApplyOptions) (LinkApplied, error) {
 		return LinkApplied{}, fmt.Errorf("this link was made on a kharej server and is for the Iran side: " +
 			"paste it there, under sudo sober-tunnel → Setup from a link")
 	}
+	// A GRE link has no token to recognise it by; the same tunnel is the one
+	// that joins the same server with the same key.
+	if link.Kind == "direct" && l3.KernelCarrier(link.Tr) && link.Host != "" {
+		if existing := greTunnelJoining(link.Host, link.GREKey); existing != "" {
+			return LinkApplied{}, fmt.Errorf("this link has already been set up here, as tunnel %q — "+
+				"a second GRE link to the same server with the same key cannot exist; "+
+				"delete that one first to set it up again", existing)
+		}
+	}
 	if existing := tunnelWithToken(link.Tok); existing != "" {
 		// The same tunnel, set up again. That is what happens after the Iran
 		// side is edited — its transport, its port — and the kharej has to
@@ -184,6 +194,7 @@ func updateReverseFromLink(link ShareLink, o LinkApplyOptions, existing string) 
 	s.Transport, s.RemoteAddr, s.Token = paired.Transport, paired.RemoteAddr, paired.Token
 	s.FallbackAddrs, s.FallbackTransports, s.FallbackDwell = paired.FallbackAddrs, paired.FallbackTransports, paired.FallbackDwell
 	s.MSS, s.SimpleAuth = paired.MSS, paired.SimpleAuth
+	s.PeerAuth = paired.PeerAuth
 	s.MuxVersion = paired.MuxVersion
 	s.KCPDataShards, s.KCPParityShards = paired.KCPDataShards, paired.KCPParityShards
 	clearManagedTransport(&s)
@@ -260,6 +271,15 @@ func applyDirectLink(link ShareLink, o LinkApplyOptions) (LinkApplied, error) {
 		}
 		form.SpoofPeerIP = ip.String()
 	}
+	if l3.KernelCarrier(link.Tr) && strings.TrimSpace(form.ServerAddr) == "" {
+		// The kharej's GRE link names the Iran server's real address.
+		host := strings.Trim(strings.TrimSpace(o.Host), "[]")
+		if host == "" {
+			return LinkApplied{}, fmt.Errorf("a GRE tunnel's kharej needs the Iran server's real " +
+				"address, and the link does not carry it — give it with --host")
+		}
+		form.ServerAddr = host
+	}
 	service, active, err := CreateDirectTunnel(form.ToNewDirectTunnel())
 	if err != nil {
 		return LinkApplied{}, err
@@ -291,7 +311,7 @@ func tunnelWithToken(token string) string {
 		if err != nil {
 			continue
 		}
-		for _, have := range []string{cfg.Client.Token, cfg.Server.Token, cfg.L3.Token, cfg.Direct.Token} {
+		for _, have := range []string{cfg.Client.Token, cfg.Server.Token, cfg.L3.Token} {
 			if have == token {
 				return t.Name
 			}

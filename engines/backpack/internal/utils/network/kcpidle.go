@@ -55,7 +55,15 @@ type kcpTuner interface {
 // while it is busy — the tunnel's setting, or true for a session that forces
 // it, such as the control channel.
 func IdleAwareKCP(session *kcp.UDPSession, s KCPSettings, ackNoDelay bool) net.Conn {
-	c := &idleKCP{UDPSession: session, tuner: session, interval: s.Interval, ack: ackNoDelay}
+	return newIdleKCP(session, s, ackNoDelay, nil)
+}
+
+// newIdleKCP wraps session and hands it to the idle governor. path is set here,
+// before the governor can see the session: its sweep reads it from another
+// goroutine, and PooledKCP setting it after the hand-over was a data race
+// (seen under -race once reverse kcp came under path control).
+func newIdleKCP(session *kcp.UDPSession, s KCPSettings, ackNoDelay bool, path *PathControl) *idleKCP {
+	c := &idleKCP{UDPSession: session, tuner: session, delayer: session, interval: s.Interval, ack: ackNoDelay, path: path}
 	c.touch()
 	idleGov.add(c)
 	return c
@@ -70,6 +78,15 @@ type idleKCP struct {
 	last atomic.Int64 // unix nanoseconds of the last read or write
 	idle atomic.Bool
 	mu   sync.Mutex // orders the switches themselves
+
+	// path is the tunnel's path control when the session is under it (see
+	// PooledKCP), which then decides how acknowledgements and small writes are
+	// batched while the session is busy: ack is what it last said, wdelay and
+	// wdApplied the write delay it wants and the one the session has.
+	path      *PathControl
+	delayer   interface{ SetWriteDelay(bool) }
+	wdelay    bool
+	wdApplied bool
 }
 
 func (c *idleKCP) Read(b []byte) (int, error) {
@@ -88,7 +105,47 @@ func (c *idleKCP) Write(b []byte) (int, error) {
 
 func (c *idleKCP) Close() error {
 	idleGov.remove(c)
+	if c.path != nil {
+		c.path.remove(c)
+	}
 	return c.UDPSession.Close()
+}
+
+// SetACKNoDelay is what the path control calls to batch acknowledgements, or
+// not. While the session is idle it acknowledges every packet whatever it is
+// told (see above), and takes the setting when it wakes.
+func (c *idleKCP) SetACKNoDelay(nodelay bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ack = nodelay
+	if !c.idle.Load() {
+		c.tuner.SetACKNoDelay(nodelay)
+	}
+}
+
+// SetWriteDelay is what the path control calls to batch small writes. A session
+// that has just woken flushes its first write at once, which a delayed write
+// would hold for up to the idle interval, so the delay takes effect at the next
+// sweep and not at the wake.
+func (c *idleKCP) SetWriteDelay(delay bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.wdelay = delay
+	if !delay || (!c.idle.Load() && c.wdApplied) {
+		c.delayer.SetWriteDelay(delay)
+		c.wdApplied = delay
+	}
+}
+
+// settleWriteDelay applies the write delay the path control asked for to a
+// session that has been awake for a sweep.
+func (c *idleKCP) settleWriteDelay() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.wdelay != c.wdApplied && !c.idle.Load() {
+		c.delayer.SetWriteDelay(c.wdelay)
+		c.wdApplied = c.wdelay
+	}
 }
 
 // touch records activity and, if the session was idle, puts it back on the
@@ -111,6 +168,9 @@ func (c *idleKCP) touch() {
 
 // sweep moves the session to the idle interval if it has been quiet for after.
 func (c *idleKCP) sweep(now time.Time, after time.Duration) {
+	if c.path != nil {
+		c.settleWriteDelay()
+	}
 	quietSince := now.Add(-after).UnixNano()
 	if c.idle.Load() || c.last.Load() > quietSince {
 		return
@@ -121,6 +181,11 @@ func (c *idleKCP) sweep(now time.Time, after time.Duration) {
 		return
 	}
 	c.idle.Store(true)
+	if c.path != nil && c.wdApplied {
+		// The first write after the idle spell must go out at once.
+		c.delayer.SetWriteDelay(false)
+		c.wdApplied = false
+	}
 	c.tuner.SetACKNoDelay(true)
 	c.tuner.SetNoDelay(-1, idleInterval, -1, -1)
 	if c.last.Load() > quietSince {

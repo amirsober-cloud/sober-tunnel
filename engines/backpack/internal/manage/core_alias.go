@@ -36,6 +36,9 @@ var (
 	EffectiveRestartHours = core.EffectiveRestartHours
 	LinkHosts             = core.LinkHosts
 	SetLinkHosts          = core.SetLinkHosts
+	LinkDial              = core.LinkDial
+	LinkEdge              = core.LinkEdge
+	SetLinkDial           = core.SetLinkDial
 
 	RestartForNewBinary = core.RestartForNewBinary
 	RestartLater        = core.RestartLater
@@ -77,7 +80,6 @@ var (
 	orDefault  = core.OrDefault
 	writeUnit  = core.WriteUnit
 	validName  = core.ValidName
-	directRole = core.DirectRole
 	l3Role     = core.L3Role
 )
 

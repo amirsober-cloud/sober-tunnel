@@ -249,12 +249,6 @@ type server struct {
 // change — the one that made it.
 func basePrefix() string { return Load().PathPrefix() }
 
-// password always reads the current password from disk, so a change made from
-// the CLI or the web UI takes effect immediately — no restart, no stale cache.
-func (s *server) password() string {
-	return Load().Password
-}
-
 // updatePassword persists a new password (read fresh on the next login).
 func (s *server) updatePassword(pw string) error {
 	_, err := UpdateConfig(func(c *Config) error { c.Password = pw; return nil })
@@ -429,14 +423,10 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("/api/direct/defaults", s.requireAuth(s.handleDirectDefaults))
 	mux.HandleFunc("/api/direct/create", s.requireAuth(s.handleDirectCreate))
 	mux.HandleFunc("/api/tunnel/settings", s.requireAuth(s.handleTunnelSettings))
-	// Handing a tunnel's paired settings to the other server, and taking them
-	// from it. See handleShareLink.
-	// Managed servers: the fleet, the login each one is reached with, and
-	// building both ends of a tunnel in a single submission. See
+	// Managed servers: the fleet and the login each one is reached with. See
 	// handlers_nodes.go.
 	mux.HandleFunc("/api/nodes", s.requireAuth(s.handleNodes))
 	mux.HandleFunc("/api/fleet/drift", s.requireReadAuth(s.handleDrift))
-	mux.HandleFunc("/api/node/pair", s.requireAuth(s.handleNodePair))
 	// Linking a tunnel that already exists to the server holding its other
 	// end. See handlers_adopt.go.
 	mux.HandleFunc("/api/tunnel/adopt", s.requireAuth(s.handleTunnelAdopt))
@@ -484,6 +474,10 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("/api/autobackup", s.requireAuth(s.handleAutoBackup))
 	mux.HandleFunc("/api/history", s.requireAuth(s.handleHistory))
 	mux.HandleFunc("/api/channel", s.requireAuth(s.handleChannel))
+	// The overview's showcase box, served from the cache the panel keeps of
+	// it. See handlers_showcase.go.
+	mux.HandleFunc("/api/showcase", s.requireAuth(s.handleShowcase))
+	mux.HandleFunc("/api/showcase/image", s.requireAuth(s.handleShowcaseImage))
 	// The manifest, icons and service worker are what let the panel install as
 	// an app; the browser fetches them before any login, so they carry no data
 	// and no auth. The worker is required for an install offer and must be

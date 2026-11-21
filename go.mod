@@ -1,6 +1,6 @@
 module github.com/amirsober-cloud/sober-tunnel
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect

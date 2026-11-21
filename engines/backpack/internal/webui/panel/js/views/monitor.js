@@ -10,6 +10,7 @@ import * as api from '../api.js';
 import * as store from '../store.js';
 import { openScreen } from '../ui/screen.js';
 import { oops, toast } from '../ui/toast.js';
+import { svg } from '../lib/icons.js';
 
 /* ---- alerts -------------------------------------------------------------- */
 const clock = d => d.toTimeString().slice(0, 5);
@@ -40,8 +41,8 @@ export function alertsView(ctx) {
         active.classList.toggle('calm', !list.length);
         active.innerHTML = list.length
           ? `<div class="ah2">Firing now · ${list.length}</div>` +
-            list.map(a => `<div class="ai2"><i>!</i><span>${esc(a)}</span></div>`).join('')
-          : `<div class="ai2 ok"><i>✓</i><span>Nothing is firing right now.</span></div>`;
+            list.map(a => `<div class="ai2"><i>${svg('warn')}</i><span>${esc(a)}</span></div>`).join('')
+          : `<div class="ai2 ok"><i>${svg('check')}</i><span>Nothing is firing right now</span></div>`;
       }
 
       /* Newest first. The file keeps them oldest first, and drawing it in that
@@ -66,8 +67,6 @@ export function alertsView(ctx) {
         const body = root.querySelector('.body4');
         if (body) body.scrollTop = 0;
       }
-      const note = root.querySelector('.df .note');
-      if (note) note.textContent = 'Kept by the monitor service · newest first.';
       ctx.setTeardown(close);
     },
   }).catch(oops);
@@ -93,31 +92,29 @@ export function healthView(ctx) {
         let checks;
         try { checks = await api.health(); } catch (e) { return oops(e); }
 
-        const tally = root.querySelector('.tally');
         const groups = new Map();
         for (const c of checks) {
           const g = c.Group || c.group || 'System';
           if (!groups.has(g)) groups.set(g, []);
           groups.get(g).push(c);
         }
-        const lvl = c => (c.Level || c.level || 'ok').toLowerCase();
+        /* The server says ok, warn, fail or info (handlers_monitoring.go). This
+           read "error" for a failure, which the server never sends: a failed
+           check — the engine binary missing, say — was drawn with the green
+           dot and the tally said "0 broken". Info is a fact, not a pass. */
+        const lvl = c => {
+          const l = String(c.Level || c.level || 'ok').toLowerCase();
+          return l === 'fail' ? 'error' : l;
+        };
         const counts = { ok: 0, warn: 0, error: 0 };
         checks.forEach(c => { counts[lvl(c)] = (counts[lvl(c)] || 0) + 1; });
 
-        /* The header already has a place for the tally; the pills go there
-           rather than being repeated at the top of the list. */
-        if (tally) {
-          tally.innerHTML =
-            `<span class="hcpill ok">${counts.ok} passed</span>` +
-            `<span class="hcpill wr">${counts.warn || 0} to look at</span>` +
-            `<span class="hcpill er">${counts.error || 0} broken</span>`;
-        }
         body.innerHTML =
-          (tally ? '' : `<div class="hcsum">
+          `<div class="hcsum">
             <span class="hcpill ok">${counts.ok} passed</span>
             <span class="hcpill wr">${counts.warn || 0} to look at</span>
             <span class="hcpill er">${counts.error || 0} broken</span>
-          </div>`) +
+          </div>` +
           [...groups].map(([g, list]) => `
             <div class="hcgroup">
               <div class="hcg">${esc(g)}</div>
@@ -132,26 +129,17 @@ export function healthView(ctx) {
                 </div>`).join('')}
             </div>`).join('');
         /* The footer counted the preview's own example run. */
-        const foot = root.querySelector('.df .note') || root.querySelector('.df span');
+        const foot = root.querySelector('.df .note');
         if (foot) {
           const n = checks.length;
           foot.textContent = `${n} check${n === 1 ? '' : 's'} · ` +
             `${counts.warn || 0} warning${counts.warn === 1 ? '' : 's'} · ` +
             `${counts.error || 0} failure${counts.error === 1 ? '' : 's'}`;
         }
-        /* Diagnose runs on the server; asking again is just asking again. */
-        const again = [...root.querySelectorAll('.df button, .bt')]
-          .find(b => /run again/i.test(b.textContent));
-        again?.addEventListener('click', () => healthView(ctx));
       };
       await load();
 
-      /* "Run again" ran nothing.
-       *
-       * Its onclick named runHc(), a function that lived in the preview's own
-       * script and was never carried over — so the checks could be read once
-       * and never refreshed, on the screen whose whole purpose is telling you
-       * whether something is still wrong. */
+      /* Diagnose runs on the server; asking again is just asking again. */
       $$('button', root)
         .filter(b2 => /^run again$/i.test((b2.textContent || '').trim()))
         .forEach(b2 => b2.addEventListener('click', () => load()));

@@ -34,7 +34,9 @@ import (
 
 	"github.com/backpack/backpack/config"
 	"github.com/backpack/backpack/internal/spooftest"
+	"github.com/backpack/backpack/internal/tunnel/l3"
 	"github.com/backpack/backpack/internal/tunnel/naive"
+	"github.com/backpack/backpack/internal/utils/network"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )
@@ -74,8 +76,25 @@ const connTestKind = "test"
 // ConnTestOptions.SpoofSrc); pck, on either side, needs root on both servers.
 var (
 	connTestReverse = []string{"tcp", "tcpmux", "stealth", "pck", "ws", "wss", "wsmux", "wssmux", "kcp", "quic", "udp", "naive", "xhttp", "reality"}
-	connTestDirect  = []string{"udp", "quic", "pck", "xdi", "sni"}
+	// The direct tunnel's carriers, all raw since v2.0.0 took udp and quic
+	// out, and kernel GRE — over IPv4 or IPv6, whichever the two servers
+	// reach each other on. Spoof joins them as above.
+	connTestDirect = []string{"pck", "xdi", ctXdiFEC, "sni", "gre"}
 )
+
+// ctXdiFEC is xdi with error correction, tested beside plain xdi: on a path
+// that loses packets the two can be an order of magnitude apart, and which
+// way the path goes is what the test is for. Only the test names it; the
+// tunnel it stands for is an xdi one with FEC on (see ctDirectCarrier).
+const ctXdiFEC = "xdi+fec"
+
+// ctDirectCarrier is the carrier a direct test case builds.
+func ctDirectCarrier(tr string) string {
+	if tr == ctXdiFEC {
+		return l3.CarrierXdi
+	}
+	return tr
+}
 
 // connTestNeedsRoot is a reverse transport that builds its own packets.
 func connTestNeedsRoot(tr string) bool { return tr == "pck" }
@@ -95,10 +114,6 @@ var (
 	connTestSlack    = 5 * time.Minute
 	connTestStopWait = 8 * time.Second
 )
-
-// connTestBulk is the legacy echo payload, retained for compatibility checks.
-// Run measures sustained directional goodput with ctSpeed instead.
-const connTestBulk = 1 << 20
 
 // connTestBinary is the engine to run; a variable so a test can point it at a
 // built binary rather than at the test itself.
@@ -318,20 +333,28 @@ func unGzipB64(s string) ([]byte, error) {
 
 // ConnTestResult is one tunnel's verdict.
 type ConnTestResult struct {
-	Kind        string  `json:"k"` // "reverse" or "direct"
-	Transport   string  `json:"t"`
-	Status      string  `json:"s"` // ok, unstable, down, skipped
-	Detail      string  `json:"d,omitempty"`
-	Connect     float64 `json:"c,omitempty"` // seconds to the first echo
-	OK          int     `json:"o"`           // echoes that came back
-	Tried       int     `json:"n"`           // echoes sent
-	RTTms       int     `json:"r,omitempty"`
-	Mbps        float64 `json:"m,omitempty"`
-	UploadMbps  float64 `json:"upload_mbps,omitempty"`
-	SpeedStable bool    `json:"speed_stable,omitempty"`
-	Phase       string  `json:"phase,omitempty"`
-	HTTPSProbe  string  `json:"https_probe,omitempty"` // independent TCP/TLS preflight, never a tunnel verdict
-	TestPort    int     `json:"test_port,omitempty"`
+	Kind       string  `json:"k"` // "reverse" or "direct"
+	Transport  string  `json:"t"`
+	Status     string  `json:"s"` // ok, unstable, down, skipped
+	Detail     string  `json:"d,omitempty"`
+	Connect    float64 `json:"c,omitempty"` // seconds to the first echo
+	OK         int     `json:"o"`           // echoes that came back
+	Tried      int     `json:"n"`           // echoes sent
+	RTTms      int     `json:"r,omitempty"`
+	Mbps       float64 `json:"m,omitempty"`
+	UploadMbps float64 `json:"upload_mbps,omitempty"`
+	// PeakMbps and UploadPeakMbps are the most the tunnel carried over any
+	// one second of the speed test, with up to sixteen connections loading
+	// it: the maximum it can be got to move. Mbps and UploadMbps are the
+	// sustained rate of the better stage.
+	PeakMbps       float64 `json:"peak_mbps,omitempty"`
+	UploadPeakMbps float64 `json:"upload_peak_mbps,omitempty"`
+	// SpeedStreams is how many connections the download figure came from.
+	SpeedStreams int    `json:"speed_streams,omitempty"`
+	SpeedStable  bool   `json:"speed_stable,omitempty"`
+	Phase        string `json:"phase,omitempty"`
+	HTTPSProbe   string `json:"https_probe,omitempty"` // independent TCP/TLS preflight, never a tunnel verdict
+	TestPort     int    `json:"test_port,omitempty"`
 	// Total is how many echoes the test sends each tunnel.
 	Total int `json:"z,omitempty"`
 }
@@ -344,6 +367,24 @@ const (
 	ctDown     = "down"
 	ctSkipped  = "skipped"
 )
+
+// ctNeedsV2Note is what a direct PCK or GRE row that never came up adds: both
+// are new in v2.0.0 (PCK's wire changed then, GRE did not exist), and a kharej
+// on an older release takes part in everything else, so these two rows are all
+// that shows it. Nothing on the wire says which release the kharej runs.
+func ctNeedsV2Note(kind, tr string) string {
+	if kind != "direct" {
+		return ""
+	}
+	switch tr {
+	case "pck":
+		return " — if the kharej runs a release before v2.0.0, update it: the PCK wire changed in v2.0.0"
+	case "gre":
+		return " — the path may drop IP protocol 47 (many do; then use xDi or PCK), or the kharej runs a " +
+			"release before v2.0.0 and has to be updated: GRE is new in v2.0.0"
+	}
+	return ""
+}
 
 // connTestCase is one tunnel under test, as the Iran side holds it.
 type connTestCase struct {
@@ -517,12 +558,25 @@ func StartConnTestIran(o ConnTestOptions) (*ConnTestIran, string, error) {
 		if sni == "" {
 			sni = "www.speedtest.net"
 		}
-		for i, carrier := range connTestDirect {
+		for i, tr := range connTestDirect {
 			if err := ctx.Err(); err != nil {
 				return fail(err)
 			}
-			c := &connTestCase{kind: "direct", tr: carrier, name: fmt.Sprintf("ct-%s-d%s", id, carrier)}
-			if ctFamily(host) == "IPv6" && carrier != "udp" && carrier != "quic" {
+			carrier := ctDirectCarrier(tr)
+			c := &connTestCase{kind: "direct", tr: tr, name: fmt.Sprintf("ct-%s-d%s", id, strings.ReplaceAll(tr, "+", ""))}
+			if l3.KernelCarrier(carrier) {
+				if !s.root {
+					c.skip = "needs root on both servers"
+					s.cases = append(s.cases, c)
+					continue
+				}
+				if err := s.startGRECase(c, i, host, preset); err != nil {
+					return fail(err)
+				}
+				s.cases = append(s.cases, c)
+				continue
+			}
+			if ctFamily(host) == "IPv6" {
 				c.skip = "this raw carrier uses IPv4 packets; IPv6 is not supported"
 				s.cases = append(s.cases, c)
 				continue
@@ -539,22 +593,43 @@ func StartConnTestIran(o ConnTestOptions) (*ConnTestIran, string, error) {
 				// The kharej's address is not known until it joins; the link
 				// carries only the port.
 				Addr:  net.JoinHostPort("0.0.0.0", strconv.Itoa(ctPickPort(used, true))),
-				Token: ctCaseToken(s.link.Tok, "direct", carrier), Iface: fmt.Sprintf("bpt%d", i),
+				Token: ctCaseToken(s.link.Tok, "direct", tr), Iface: fmt.Sprintf("bpt%d", i),
 				LocalIP: block + "1/30", PeerIP: block + "2",
 				// The wizard's defaults, the path MTU measured included: a
 				// tunnel tested with other settings is not the one that
 				// would be built.
 				MTU: defaultL3MTU,
 			}
-			findL3Preset(preset).apply(&c.l3)
+			if carrier == l3.CarrierPck {
+				// The preset is the engine's own: no queue and no socket
+				// buffer of a TUN's.
+				c.l3.Preset, c.l3.SockBuf, c.l3.TxQueueLen, c.l3.Qdisc = strings.ToLower(strings.TrimSpace(preset)), 0, 0, ""
+			} else {
+				findL3Preset(preset).apply(&c.l3)
+			}
 			if carrier == "sni" {
 				c.l3.SNIDomain = sni
+			}
+			if tr == ctXdiFEC {
+				// The scheme the wizard and the panel turn on.
+				plan := defaultL3FEC()
+				c.l3.FECData, c.l3.FECParity = plan.Data, plan.Parity
+			}
+			if carrier == l3.CarrierPck {
+				// PCK is paqet's engine and has no TUN, so there is no tunnel
+				// address to dial the kharej's echo on. The Iran side forwards
+				// a port to it instead, like any real PCK tunnel does, and the
+				// probes dial that.
+				if c.entry = ctPickPort(used, false); c.entry == 0 {
+					return fail(fmt.Errorf("no free ports for the %s test", carrier))
+				}
+				c.l3.Ports = []string{fmt.Sprintf("127.0.0.1:%d=127.0.0.1:%d", c.entry, s.link.L3)}
 			}
 			raw := pendingShareLink(c.l3, linkExtras{})
 			if c.link, err = DecodeShareLink(raw); err != nil {
 				return fail(fmt.Errorf("building the %s test link: %w", carrier, err))
 			}
-			c.link.Name = c.name
+			c.link.Name, c.link.Tr = c.name, tr
 			s.cases = append(s.cases, c)
 		}
 	}
@@ -986,9 +1061,14 @@ func (s *ConnTestIran) Run(ctx context.Context, progress func(int, ConnTestResul
 		if c.kind != "direct" || c.skip != "" {
 			continue
 		}
-		_, port, _ := net.SplitHostPort(c.l3.Addr)
-		port = s.coord.directPort(c.tr, port)
-		c.l3.Addr = net.JoinHostPort(kharej, port)
+		if l3.KernelCarrier(c.l3.Carrier) {
+			// A GRE link names the kharej alone; there is no port to agree.
+			c.l3.Addr = strings.Trim(kharej, "[]")
+		} else {
+			_, port, _ := net.SplitHostPort(c.l3.Addr)
+			port = s.coord.directPort(c.tr, port)
+			c.l3.Addr = net.JoinHostPort(kharej, port)
+		}
 		_, body, err := directBodyFromSpec(c.l3)
 		if err == nil {
 			var e *ctEngine
@@ -1054,6 +1134,13 @@ func (s *ConnTestIran) Run(ctx context.Context, progress func(int, ConnTestResul
 	wg.Wait()
 	// Stability probes finish before any bandwidth test starts. Heavy traffic
 	// must not change another tunnel's loss/RTT or share its speed measurement.
+	speeds := map[int]ctSpeedResult{}
+	queued := 0
+	for _, r := range results {
+		if r.Phase == "speed-queued" {
+			queued++
+		}
+	}
 	for i, c := range s.cases {
 		r := results[i]
 		if r.Phase != "speed-queued" {
@@ -1071,12 +1158,36 @@ func (s *ConnTestIran) Run(ctx context.Context, progress func(int, ConnTestResul
 		if err != nil {
 			r.Status, r.Detail = ctUnstable, "speed test failed ("+ctShortErr(err)+")"
 		} else {
-			r.Status, r.Mbps, r.UploadMbps, r.SpeedStable = ctOK, speed.download, speed.upload, speed.stable
-			if !speed.stable {
-				r.Detail = "speed varied during the sample; repeat to confirm"
+			speeds[i] = speed
+			ctPutSpeed(&r, speed)
+			if queued > 1 {
+				r.Phase = ctPhaseAgain
 			}
 		}
 		reportRow(i, r)
+	}
+	// A second pass in the opposite order, each tunnel keeping its better
+	// figures. One pass does not give every tunnel the same path: the first
+	// has it fresh, the last runs after minutes of load, when a provider's
+	// burst allowance or a shaper's patience may be spent. In reverse the
+	// last goes first, so no figure rests on its place in the queue.
+	if len(speeds) > 1 {
+		for i := len(s.cases) - 1; i >= 0; i-- {
+			first, ok := speeds[i]
+			if !ok {
+				continue
+			}
+			c, r := s.cases[i], results[i]
+			if ctx.Err() != nil {
+				r.Phase = ""
+				reportRow(i, r)
+				continue
+			}
+			r.Phase, r.Detail = ctPhaseSecond, "second pass, in reverse order"
+			reportRow(i, r)
+			ctPutSpeed(&r, ctSpeedAgain(ctx, func() (net.Conn, error) { return ctDial(ctx, c, s.link.L3) }, first))
+			reportRow(i, r)
+		}
 	}
 
 	// The kharej's path-MTU measurement, which it has usually sent long before.
@@ -1093,6 +1204,23 @@ func (s *ConnTestIran) Run(ctx context.Context, progress func(int, ConnTestResul
 	}
 	s.coord.publish(results, s.best)
 	return results
+}
+
+// A row's phases in the second speed pass: measured once and waiting for it,
+// with the first pass's figures already in it, then being measured again.
+const (
+	ctPhaseAgain  = "speed-again"
+	ctPhaseSecond = "speed-second"
+)
+
+// ctPutSpeed writes a passed speed test into its row.
+func ctPutSpeed(r *ConnTestResult, speed ctSpeedResult) {
+	r.Status, r.Mbps, r.UploadMbps, r.SpeedStable = ctOK, speed.download, speed.upload, speed.stable
+	r.PeakMbps, r.UploadPeakMbps, r.SpeedStreams = speed.downloadPeak, speed.uploadPeak, speed.streams
+	r.Phase, r.Detail = "", ""
+	if !speed.stable {
+		r.Detail = "speed varied during the sample; repeat to confirm"
+	}
 }
 
 // Best is the recommendation the finished test came to.
@@ -1292,6 +1420,7 @@ func ctProbe(ctx context.Context, c *connTestCase, l3Echo int, report func(ConnT
 				r.Detail += " — the forged source was dropped: by the provider on the way out, " +
 					"or by a strict rp_filter on the kharej"
 			}
+			r.Detail += ctNeedsV2Note(c.kind, c.tr)
 			say("never came up")
 			return r
 		}
@@ -1389,14 +1518,20 @@ func ctProbe(ctx context.Context, c *connTestCase, l3Echo int, report func(ConnT
 }
 
 func ctDial(ctx context.Context, c *connTestCase, l3Echo int) (net.Conn, error) {
-	network, addr := "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(c.entry))
+	proto, addr := "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(c.entry))
 	if c.udp {
-		network = "udp"
+		proto = "udp"
 	}
-	if c.kind == "direct" {
+	d := &net.Dialer{Timeout: 3 * time.Second}
+	if c.kind == "direct" && c.tr != l3.CarrierPck {
 		addr = net.JoinHostPort(c.peerIP, strconv.Itoa(l3Echo))
+		// Through a TUN the test's own TCP is what crosses the path, so it
+		// asks for the congestion control every tunnel socket gets. On the
+		// system default (cubic) a lossy long path held a direct tunnel to a
+		// fraction of what the reverse ones, all BBR, were measured at.
+		d.Control = network.CongestionControl
 	}
-	return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, network, addr)
+	return d.DialContext(ctx, proto, addr)
 }
 
 // connectWaitFor is how long a tunnel is given to come up. The direct ones
@@ -1433,44 +1568,6 @@ func ctEcho(c net.Conn, udp bool) error {
 		return errors.New("the echo came back different")
 	}
 	return nil
-}
-
-// ctBulkContext exercises the legacy echo transfer for compatibility checks.
-// Production speed measurements use ctSpeed after all stability probes finish.
-func ctBulkContext(ctx context.Context, dial func() (net.Conn, error)) (float64, error) {
-	c, err := dial()
-	if err != nil {
-		return 0, err
-	}
-	defer c.Close()
-	stopClose := context.AfterFunc(ctx, func() { c.Close() })
-	defer stopClose()
-	_ = c.SetDeadline(time.Now().Add(40 * time.Second))
-	payload := make([]byte, connTestBulk)
-	_, _ = rand.Read(payload)
-	start := time.Now()
-	werr := make(chan error, 1)
-	go func() {
-		n, err := c.Write(payload)
-		if err == nil && n != len(payload) {
-			err = io.ErrShortWrite
-		}
-		werr <- err
-	}()
-	got := make([]byte, len(payload))
-	if n, err := io.ReadFull(c, got); err != nil {
-		c.Close()
-		<-werr
-		return 0, fmt.Errorf("%d of %d KB back: %w", n>>10, len(payload)>>10, err)
-	}
-	if err := <-werr; err != nil {
-		return 0, err
-	}
-	if !bytes.Equal(got, payload) {
-		return 0, errors.New("the transfer came back different")
-	}
-	secs := time.Since(start).Seconds()
-	return float64(2*connTestBulk*8) / secs / 1e6, nil
 }
 
 func ctSleep(ctx context.Context, d time.Duration) {
@@ -1913,8 +2010,10 @@ func (c *ctCoordinator) directPort(tr, fallback string) string {
 	return fallback
 }
 
+// ctPortCarrier is a direct carrier the kharej binds a port for, which it
+// checks is free before Iran is told to dial it. xdi and spoof have no port.
 func ctPortCarrier(tr string) bool {
-	return tr == "udp" || tr == "quic" || tr == "pck" || tr == "sni"
+	return tr == "pck" || tr == "sni"
 }
 
 func ctSkippableCase(value string) bool {
@@ -2127,8 +2226,17 @@ func runConnTestKharejLink(ctx context.Context, link ConnTestLink, out io.Writer
 				local[c.Kind+"/"+c.Tr] = "needs root"
 				continue
 			}
-			form := MirrorForPeer(c)
+			// The tunnel the case stands for: xdi+fec is an xdi link with FEC
+			// in it. Everything else keys on the case's own name.
+			built := c
+			built.Tr = ctDirectCarrier(c.Tr)
+			form := MirrorForPeer(built)
 			form.Name = name
+			if l3.KernelCarrier(c.Tr) && form.ServerAddr == "" {
+				// The kharej's GRE link names the Iran server, which is the
+				// coordinator this side already reaches.
+				form.ServerAddr = link.Host
+			}
 			if link.DirectPorts && ctPortCarrier(c.Tr) {
 				port, err := ctKharejDirectPort(ctx, link, c.Tr, usedDirectPorts)
 				if err != nil {
@@ -2143,14 +2251,20 @@ func runConnTestKharejLink(ctx context.Context, link ConnTestLink, out io.Writer
 				continue
 			}
 			spec.Name, spec.Iface = name, fmt.Sprintf("bpt%d", i)
-			if ctFamily(link.Host) == "IPv6" {
+			if ctFamily(link.Host) == "IPv6" && !l3.KernelCarrier(spec.Carrier) {
 				spec.Addr = net.JoinHostPort("::", addrPort(spec.Addr))
 			}
 			if _, body, err = directBodyFromSpec(spec); err != nil {
 				local[c.Kind+"/"+c.Tr] = err.Error()
 				continue
 			}
-			echoes.l3(ctx, strings.SplitN(spec.LocalIP, "/", 2)[0], link.L3)
+			echoIP := strings.SplitN(spec.LocalIP, "/", 2)[0]
+			if spec.Carrier == l3.CarrierPck {
+				// No TUN address: the Iran side's forwarded port reaches the
+				// echo on this server's loopback.
+				echoIP = "127.0.0.1"
+			}
+			echoes.l3(ctx, echoIP, link.L3)
 		}
 		e, err := startCTEngine(dir, name, body)
 		if err != nil {
@@ -2199,7 +2313,7 @@ func runConnTestKharejLink(ctx context.Context, link ConnTestLink, out io.Writer
 		ctKharejSpoof(ctx, link, root)
 	}
 	go ctKharejPMTU(ctx, link)
-	fmt.Fprintln(out, "The Iran server has started the test: five minutes of stability, then download/upload for each healthy tunnel (about 8–12 seconds each).")
+	fmt.Fprintln(out, "The Iran server has started the test: five minutes of stability, then download/upload for each healthy tunnel (about 16–25 seconds each).")
 
 	// The verdict, and the rows as they fill until it comes.
 	for {
@@ -2276,7 +2390,9 @@ func ctStartEchoes(ctx context.Context, link ConnTestLink) (*ctEchoes, error) {
 func (e *ctEchoes) l3(ctx context.Context, ip string, port int) {
 	go func() {
 		for ctx.Err() == nil {
-			l, err := net.Listen("tcp", net.JoinHostPort(ip, strconv.Itoa(port)))
+			// The download's sender: BBR as on the Iran side (see ctDial).
+			lc := net.ListenConfig{Control: network.CongestionControl}
+			l, err := lc.Listen(ctx, "tcp", net.JoinHostPort(ip, strconv.Itoa(port)))
 			if err == nil {
 				e.add(l)
 				ctServeTCPEcho(l, e)

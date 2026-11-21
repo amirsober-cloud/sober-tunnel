@@ -1,0 +1,36 @@
+name: Validate v2 integration
+on:
+  push:
+    branches: [work/v2-security-resume]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            go.work.sum
+            engines/backpack/go.sum
+            engines/camouflage/go.sum
+      - run: sudo apt-get update && sudo apt-get install -y libpcap-dev flex bison
+      - name: Build combined distribution
+        run: bash scripts/build.sh
+      - name: Validate all engine packages
+        run: go test -p 2 -timeout 5m ./engines/backpack/... ./engines/camouflage/...
+      - name: Check browser code
+        run: |
+          find engines/backpack/internal/webui/panel/js -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 sh -c 'node --input-type=module --check < "$0"'
+          node engines/backpack/internal/webui/paneltest/mimic-form.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-binaries
+          path: |
+            build/sober-tunnel
+            build/sober-tunnel-mimic

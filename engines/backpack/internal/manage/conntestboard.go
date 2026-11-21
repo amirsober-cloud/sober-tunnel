@@ -29,7 +29,7 @@ const ctBarSegments = 8
 var ctTransportNames = map[string]string{
 	"tcp": "TCP", "tcpmux": "TCP MUX", "stealth": "Stealth", "pck": "PCK",
 	"ws": "WS", "wss": "WSS", "wsmux": "WS MUX", "wssmux": "WSS MUX",
-	"kcp": "KCP FEC", "quic": "QUIC", "udp": "UDP", "xdi": "xDi", "sni": "SNI",
+	"kcp": "KCP FEC", "quic": "QUIC", "udp": "UDP", "xdi": "xDi", ctXdiFEC: "xDi + FEC", "sni": "SNI", "gre": "GRE",
 	"naive": "Naive / HTTP2", "xhttp": "XHTTP / TLS", "reality": "REALITY / Vision",
 	ctSpoofToKharej: "Iran→Kharej", ctSpoofToIran: "Kharej→Iran",
 }
@@ -90,7 +90,7 @@ func ctRow(r ConnTestResult) string {
 }
 
 func ctStatusLabel(r ConnTestResult) string {
-	if r.Phase == "speed" {
+	if ConnTestSpeedPhase(r.Phase) {
 		return "SPEED"
 	}
 	if r.Phase == "speed-queued" {
@@ -127,10 +127,15 @@ func ConnTestTable(results []ConnTestResult) string {
 			} else if r.OK > 0 && r.Kind != "spoof" {
 				rtt = "<1ms"
 			}
+			// The most it carried leads; the sustained rate follows.
 			if r.Mbps > 0 {
 				speed = fmt.Sprintf("%.1f Mbps", r.Mbps)
 				if r.UploadMbps > 0 {
-					speed = fmt.Sprintf("↓ %.1f / ↑ %.1f Mbps (4 streams)", r.Mbps, r.UploadMbps)
+					speed = fmt.Sprintf("↓ %.1f / ↑ %.1f Mbps", r.Mbps, r.UploadMbps)
+				}
+				if r.PeakMbps > 0 {
+					speed = fmt.Sprintf("max ↓ %.1f / ↑ %.1f Mbps · avg ↓ %.1f / ↑ %.1f",
+						max(r.PeakMbps, r.Mbps), max(r.UploadPeakMbps, r.UploadMbps), r.Mbps, r.UploadMbps)
 				}
 			}
 			fmt.Fprintf(&b, "%s %-26s %-7s %s\n", ctEmoji(ctOK), ctKind(r.Kind)+" "+ctName(r.Transport), rtt, speed)
@@ -239,16 +244,6 @@ func ctIsTerminal(w io.Writer) bool {
 	}
 	st, err := f.Stat()
 	return err == nil && st.Mode()&os.ModeCharDevice != 0
-}
-
-// set records one tunnel's state.
-func (b *ctBoard) set(i int, r ConnTestResult) {
-	b.mu.Lock()
-	for len(b.rows) <= i {
-		b.rows = append(b.rows, ConnTestResult{})
-	}
-	b.rows[i] = r
-	b.mu.Unlock()
 }
 
 // setAll replaces every row, for the kharej, which is sent them together.

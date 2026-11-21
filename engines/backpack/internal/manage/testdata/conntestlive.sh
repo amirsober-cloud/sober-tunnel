@@ -7,7 +7,11 @@
 # Env: BIN (the engine), TESTBIN (the test binary, re-run as the Iran side),
 # W (work dir), SOAK (seconds), FILTER (packets a flow may carry before the
 # path drops the rest of it — what an Iran route was measured doing; unset for
-# a clean path), PATHMTU (the veth MTU, to test the path-MTU measurement).
+# a clean path), PATHMTU (the veth MTU, to test the path-MTU measurement),
+# NETEM (more netem options for both ends, e.g. "rate 200mbit loss 0.5%"),
+# POLICE (a rate such as "100mbit": each end's outgoing traffic above it is
+# dropped at once, with no queue — the policer some providers run, which a
+# window controller cannot see coming the way it sees a queue fill).
 set -u
 mount -t tmpfs none /run 2>/dev/null; mkdir -p /run/netns
 ip netns add iran; ip netns add kharej
@@ -28,8 +32,18 @@ ip -n iran link set vi up; ip -n kharej link set vk up
 if [ -n "${PATHMTU:-}" ]; then
   ip -n iran link set vi mtu "$PATHMTU"; ip -n kharej link set vk mtu "$PATHMTU"
 fi
-ip netns exec iran tc qdisc add dev vi root netem delay 35ms
-ip netns exec kharej tc qdisc add dev vk root netem delay 35ms
+ip netns exec iran tc qdisc add dev vi root netem delay 35ms ${NETEM:-}
+ip netns exec kharej tc qdisc add dev vk root netem delay 35ms ${NETEM:-}
+if [ -n "${POLICE:-}" ]; then
+  # On the way out (clsact egress), not the way in: pck and xdi read with
+  # packet sockets, which see an arriving packet before an ingress policer
+  # could drop it — a policer on the path drops it before it arrives at all.
+  for pair in "iran vi" "kharej vk"; do
+    set -- $pair
+    ip netns exec "$1" tc qdisc add dev "$2" clsact
+    ip netns exec "$1" tc filter add dev "$2" egress matchall action police rate "$POLICE" burst 64k drop
+  done
+fi
 # A strict rp_filter drops a forged source before the spoof carrier sees it,
 # and a loose one does too here, where no default route covers it; off, as
 # l3live.sh has it. A real server with a default route needs only loose (2).
@@ -50,7 +64,7 @@ fi
 mkdir -p "$W"
 rm -f "$W/link"
 ip netns exec iran env CT_ROLE=iran CT_HOST="$CT_SERVER" CT_W="$W" CT_SOAK="$SOAK" CT_PRESET="${PRESET:-}" CT_ONLY="${ONLY:-}" BIN="$BIN" \
-  "$TESTBIN" -test.run '^TestConnTestIranSide$' -test.v -test.timeout 10m > "$W/iran.out" 2>&1 &
+  "$TESTBIN" -test.run '^TestConnTestIranSide$' -test.v -test.timeout 25m > "$W/iran.out" 2>&1 &
 IP=$!
 for i in $(seq 60); do [ -s "$W/link" ] && break; sleep 1; done
 if [ ! -s "$W/link" ]; then echo "RESULT FAIL the Iran side printed no link"; cat "$W/iran.out"; exit 1; fi

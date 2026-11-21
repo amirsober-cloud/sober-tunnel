@@ -84,7 +84,13 @@ func (s *server) handleTunnelDefaults(w http.ResponseWriter, r *http.Request) {
 // already in use — is something the operator fixes by editing the tunnel, not
 // by creating it again.
 func (s *server) handleTunnelCreate(w http.ResponseWriter, r *http.Request) {
-	serveCreate(w, r, manage.CreateTunnel, func(n manage.NewTunnel) string { return n.Name })
+	// The HTTPS transports name the address Kharej dials in their private
+	// certificate: the one this panel was reached on, as the setup link uses.
+	create := func(n manage.NewTunnel) (string, bool, error) {
+		n.Host = panelHost(r)
+		return manage.CreateTunnel(n)
+	}
+	serveCreate(w, r, create, func(n manage.NewTunnel) string { return n.Name })
 }
 
 // handleTunnelSettings serves one tunnel's editable settings, for filling the
@@ -366,6 +372,9 @@ func (s *server) handleDirectOptions(w http.ResponseWriter, r *http.Request) {
 		// The forged-source carrier's packet profiles, so the form offers the
 		// same list the CLI does rather than a copy that drifts.
 		"spoofProfiles": manage.SpoofProfiles(),
+		// PCK's KCP speed modes and ciphers, for its fine-tune menus.
+		"pckModes":  manage.PckModes(),
+		"pckBlocks": manage.PckBlocks(),
 	})
 }
 

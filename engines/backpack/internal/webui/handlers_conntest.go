@@ -49,8 +49,11 @@ type conntestRow struct {
 	RTTms      int     `json:"rtt,omitempty"`
 	Mbps       float64 `json:"mbps,omitempty"`
 	UploadMbps float64 `json:"uploadMbps,omitempty"`
-	Phase      string  `json:"phase,omitempty"`
-	Connect    float64 `json:"connect,omitempty"`
+	// The best second of either direction; see manage.ConnTestResult.
+	PeakMbps       float64 `json:"peakMbps,omitempty"`
+	UploadPeakMbps float64 `json:"uploadPeakMbps,omitempty"`
+	Phase          string  `json:"phase,omitempty"`
+	Connect        float64 `json:"connect,omitempty"`
 }
 
 // conntestView is the whole state, as GET /api/conntest answers it.
@@ -143,6 +146,7 @@ func rowOf(r manage.ConnTestResult) conntestRow {
 		Status: r.Status, Detail: r.Detail, OK: r.OK, Tried: r.Tried, Total: r.Total,
 		RTTms: r.RTTms, Mbps: r.Mbps, Connect: r.Connect,
 		UploadMbps: r.UploadMbps, Phase: r.Phase,
+		PeakMbps: r.PeakMbps, UploadPeakMbps: r.UploadPeakMbps,
 	}
 }
 
@@ -195,18 +199,12 @@ func (c *conntestRunner) start(parent context.Context, hosts []string, preset st
 					v.State, v.Host, v.Kharej, v.Rows = ctRunning, p.Host, p.Kharej, append([]conntestRow(nil), p.Rows...)
 					v.Ran = p.Started
 					v.Ends = time.Unix(p.Started, 0).Add(manage.ConnTestRunTime()).Unix()
-					pending := 0
-					speed := false
-					for _, r := range p.Rows {
-						if r.Phase == "speed" {
-							speed = true
-						}
-						if r.Phase == "speed" || r.Phase == "speed-queued" {
-							pending++
-						}
+					phases := make([]string, len(p.Rows))
+					for i, r := range p.Rows {
+						phases[i] = r.Phase
 					}
-					if speed {
-						v.Ends = time.Now().Add(manage.ConnTestSpeedTime(pending) + 15*time.Second).Unix()
+					if left := manage.ConnTestSpeedLeft(phases); left > 0 {
+						v.Ends = time.Now().Add(left + 15*time.Second).Unix()
 					}
 				} else {
 					v.State = ctWaiting

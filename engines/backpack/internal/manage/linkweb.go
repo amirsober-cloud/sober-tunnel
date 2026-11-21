@@ -3,7 +3,13 @@ package manage
 import (
 	"fmt"
 	"strings"
+
+	"github.com/backpack/backpack/internal/tunnel/l3"
 )
+
+// greHostPlaceholder stands in the kharej's command for the Iran server's
+// address when the GRE link could not name it.
+const greHostPlaceholder = "IRAN_SERVER_IP"
 
 // The setup link, as the web panel shows it.
 //
@@ -29,12 +35,18 @@ type SetupLinkInfo struct {
 	// known, and then NeedsAddress says the other side will ask for it.
 	Host         string `json:"host,omitempty"`
 	NeedsAddress bool   `json:"needsAddress,omitempty"`
+	// GRE is a kernel GRE tunnel's link, which carries a GRE key and no
+	// token, so the screen's warning names what it does hold.
+	GRE bool `json:"gre,omitempty"`
 }
 
 // SetupLinkFor builds a tunnel's setup link. host overrides the address the
 // link names; empty uses this server's public address, as the menu does.
 func SetupLinkFor(name, host string) (SetupLinkInfo, error) {
 	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if dial := LinkDial(name); dial != "" {
+		host = dial
+	}
 	if host == "" {
 		host = linkHost()
 	}
@@ -48,8 +60,18 @@ func SetupLinkFor(name, host string) (SetupLinkInfo, error) {
 	}
 	info := SetupLinkInfo{Name: name, Link: raw, For: l.PeerSide(), Kind: l.Kind, Host: host,
 		NeedsAddress: host == "" && l.PeerNeedsAddress()}
+	// A GRE link's kharej names this server, so the address the link holds is
+	// the one that counts, and without it `link apply` refuses: the line has to
+	// carry --host, and the screen has to say which address goes there.
+	gre := l3.KernelCarrier(l.Tr) && l.Kind == "direct"
+	if gre {
+		info.Host, info.NeedsAddress, info.GRE = l.Host, l.Host == "", true
+	}
 	if info.For == "kharej" {
 		info.Apply = "sudo sober-tunnel link apply '" + raw + "'"
+		if gre && l.Host == "" {
+			info.Apply = "sudo sober-tunnel link apply --host " + greHostPlaceholder + " '" + raw + "'"
+		}
 		info.Install = InstallCommand(raw)
 		info.Where = "sudo sober-tunnel → Setup Kharej → Setup Link"
 		if managedTransport(l.Tr) {

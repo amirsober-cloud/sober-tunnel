@@ -41,7 +41,7 @@ func TestTheConnectionTestAcrossARealPath(t *testing.T) {
 	}{{"clean path", ""}, {"a path that cuts every flow after 12 packets", "12"}} {
 		t.Run(path.name, func(t *testing.T) {
 			w := t.TempDir()
-			ctx, cancel := context.WithTimeout(context.Background(), 9*time.Minute)
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, "unshare", "--map-auto", "--map-root-user", "--net", "--mount", "--fork", "--", script)
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -66,13 +66,17 @@ func TestTheConnectionTestAcrossARealPath(t *testing.T) {
 			}
 			// Every reverse transport, every direct carrier, and IP spoofing
 			// both ways.
-			if len(results) != len(connTestReverse)+len(connTestDirect)+2 {
+			// ONLY narrows the run to one tunnel (see conntestlive.sh).
+			if os.Getenv("ONLY") == "" && len(results) != len(connTestReverse)+len(connTestDirect)+2 {
 				t.Fatalf("%d results\n%s", len(results), out)
 			}
 			if !strings.Contains(string(out), "Works Steadily:") {
 				t.Errorf("the kharej did not print the verdict\n%s", out)
 			}
 			for _, r := range results {
+				if r.Phase != "" {
+					t.Errorf("%s %s finished in phase %q", r.Kind, r.Transport, r.Phase)
+				}
 				if managedTransport(r.Transport) && r.Status == ctSkipped {
 					t.Logf("optional %s skipped: %s", r.Transport, r.Detail)
 					continue
@@ -81,7 +85,7 @@ func TestTheConnectionTestAcrossARealPath(t *testing.T) {
 				// the filter here cannot always reach them; every other carrier
 				// is an ordinary socket the filter sees.
 				raw := r.Transport == "pck" || r.Kind == "spoof" ||
-					(r.Kind == "direct" && (r.Transport == "sni" || r.Transport == "xdi"))
+					(r.Kind == "direct" && (r.Transport == "sni" || ctDirectCarrier(r.Transport) == "xdi"))
 				switch {
 				case path.filter == "" && r.Status != ctOK:
 					t.Errorf("clean path: %s %s is %s (%s) — %d/%d", r.Kind, r.Transport, r.Status, r.Detail, r.OK, r.Tried)
@@ -115,8 +119,10 @@ func TestConnTestIranSide(t *testing.T) {
 			connTestDirect = []string{tr}
 		}
 	}
+	// CT_REALITY=host:port names the REALITY cover, for a namespace with no
+	// way to the public covers the test otherwise looks for.
 	s, link, err := StartConnTestIran(ConnTestOptions{Host: os.Getenv("CT_HOST"), Direct: true, SNIDomain: "www.example.com",
-		SpoofSrc: "10.10.10.10", Preset: os.Getenv("CT_PRESET")})
+		SpoofSrc: "10.10.10.10", Preset: os.Getenv("CT_PRESET"), RealityTarget: os.Getenv("CT_REALITY")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +205,7 @@ func TestTheConnectionTestAcrossAnIPv6OnlyPath(t *testing.T) {
 		t.Fatalf("missing IPv6 results: %+v", rows)
 	}
 	for _, r := range rows {
-		unsupported := r.Kind == "spoof" || r.Transport == "pck" || r.Transport == "xdi" || r.Transport == "sni"
+		unsupported := r.Kind == "spoof" || r.Transport == "pck" || ctDirectCarrier(r.Transport) == "xdi" || r.Transport == "sni"
 		if unsupported {
 			if r.Status != ctSkipped || !strings.Contains(r.Detail, "IPv6 is not supported") {
 				t.Errorf("raw IPv6 verdict: %+v", r)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/backpack/backpack/internal/tunnel/bridge"
 	"github.com/backpack/backpack/internal/tunnel/limits"
+	"github.com/backpack/backpack/internal/tunnel/paqet"
 	"github.com/backpack/backpack/internal/tunnel/portmap"
 	"github.com/sirupsen/logrus"
 )
@@ -85,6 +86,9 @@ type Forwarder struct {
 	ready     chan struct{}
 	readyOnce sync.Once
 
+	// dial, when set, replaces dialling the targets from this host.
+	dial DialFunc
+
 	// tunnelUp says whether the tunnel has a session, so a refused port is not
 	// blamed on the far end's service while the tunnel itself is down. Nil
 	// when nobody said, which is read as unknown.
@@ -113,7 +117,18 @@ func NewForwarder(cfg Config, log *logrus.Logger) (*Forwarder, error) {
 	if len(cfg.Ports) == 0 {
 		return nil, nil
 	}
-	mappings, err := portmap.Expand(cfg.Ports, cfg.PeerIP)
+	// A pck tunnel serves ports from the dialling side only; on the listening
+	// side the file's ports have nothing to dial through (see PckNotes).
+	if cfg.Carrier == CarrierPck && cfg.Mode == ModeListen {
+		return nil, nil
+	}
+	// A pck tunnel has no address for the far end on a TUN: a target with no
+	// host is dialled on the far server's own loopback. See pck.go.
+	defaultHost := cfg.PeerIP
+	if cfg.Carrier == CarrierPck {
+		defaultHost = loopbackTarget
+	}
+	mappings, err := portmap.Expand(cfg.Ports, defaultHost)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +148,17 @@ func NewForwarder(cfg Config, log *logrus.Logger) (*Forwarder, error) {
 			BandwidthMbps:  cfg.BandwidthMbps,
 		}),
 	}, nil
+}
+
+// SetDialer makes the forwarder reach its targets through dial instead of
+// dialling them itself. The pck engine uses it: its far side makes the
+// connection. Called before Run.
+func (f *Forwarder) SetDialer(dial DialFunc) { f.dial = dial }
+
+func (f *Forwarder) newPool(targets []string) *backendPool {
+	p := newBackendPool(targets)
+	p.dialFn = f.dial
+	return p
 }
 
 // SetTunnelState tells the forwarder how to ask whether the tunnel is up.
@@ -186,35 +212,72 @@ func (f *Forwarder) Run(ctx context.Context) error {
 	// fails outright takes this path — nobody is left waiting.
 	defer f.readyOnce.Do(func() { close(f.ready) })
 
-	for _, mapping := range f.mappings {
-		wg.Add(1)
-		go func(m portmap.Mapping) {
-			defer wg.Done()
-			if err := f.serveTCP(genCtx, m, binding.Done); err != nil && ctx.Err() == nil {
-				// Said out loud as well as returned. A listener that cannot
-				// bind is the single most likely thing to go wrong here, and
-				// what it looks like from the outside is a port that quietly
-				// does nothing.
-				f.log.Errorf("l3: tcp forwarder for %s stopped: %v", m.Listen, err)
+	// A port that cannot be bound is retried on its own, every
+	// forwardBindRetry, while the others carry on. It used to end the whole
+	// generation, and the supervisor rebuilt every listener five seconds
+	// later: one forwarded port that something else held took every other
+	// port of the tunnel, TCP and UDP, down and up again every five seconds
+	// for as long as it was held. Measured on a real Iran server: half a
+	// minute of a held port left UDP at 79% and pushed connection latency
+	// past 600 ms on ports that were fine. The reverse transports already
+	// treat a busy port this way (internal/server/transport/bindfail.go).
+	//
+	// A bind still failing when Run returns is its error, so a port that never
+	// came up is not reported as a clean shutdown.
+	var unboundMu sync.Mutex
+	unbound := map[string]error{}
+	setUnbound := func(key string, err error) {
+		unboundMu.Lock()
+		defer unboundMu.Unlock()
+		if err == nil {
+			delete(unbound, key)
+		} else {
+			unbound[key] = err
+		}
+	}
+	serve := func(proto string, m portmap.Mapping, run func(context.Context, portmap.Mapping, func()) error) {
+		defer wg.Done()
+		bound := sync.OnceFunc(binding.Done)
+		key := proto + " " + m.Listen
+		for attempt := 0; ; attempt++ {
+			// Cleared as each bind is attempted, and set again below if it
+			// failed: a port that comes up later is not reported at shutdown.
+			err := run(genCtx, m, func() { setUnbound(key, nil); bound() })
+			var be bindError
+			if errors.As(err, &be) && genCtx.Err() == nil {
+				setUnbound(key, be.err)
+				if attempt%12 == 0 {
+					f.log.Errorf("l3: %s forwarder for %s cannot bind: %v — the tunnel's other ports keep working; "+
+						"trying again every %s", proto, m.Listen, be.err, forwardBindRetry)
+				}
+				select {
+				case <-genCtx.Done():
+					return
+				case <-time.After(forwardBindRetry):
+				}
+				continue
+			}
+			if err == nil || be.err != nil {
+				return
+			}
+			if ctx.Err() == nil {
+				// Said out loud as well as returned. What it looks like from
+				// the outside is a port that quietly does nothing.
+				f.log.Errorf("l3: %s forwarder for %s stopped: %v", proto, m.Listen, err)
 				errOnce.Do(func() {
 					firstErr = err
 					endGeneration()
 				})
 			}
-		}(mapping)
-
+			return
+		}
+	}
+	for _, mapping := range f.mappings {
+		wg.Add(1)
+		go serve("tcp", mapping, f.serveTCP)
 		if f.acceptUDP {
 			wg.Add(1)
-			go func(m portmap.Mapping) {
-				defer wg.Done()
-				if err := f.serveUDP(genCtx, m, binding.Done); err != nil && ctx.Err() == nil {
-					f.log.Errorf("l3: udp forwarder for %s stopped: %v", m.Listen, err)
-					errOnce.Do(func() {
-						firstErr = err
-						endGeneration()
-					})
-				}
-			}(mapping)
+			go serve("udp", mapping, f.serveUDP)
 		}
 	}
 
@@ -222,8 +285,27 @@ func (f *Forwarder) Run(ctx context.Context) error {
 	// A fatal listener error cancels only this generation, releasing its other
 	// listeners and flows so the supervisor can retry. Keep the original error
 	// even though that cancellation has now reached every worker.
-	return firstErr
+	if firstErr != nil {
+		return firstErr
+	}
+	unboundMu.Lock()
+	defer unboundMu.Unlock()
+	for _, err := range unbound {
+		return err
+	}
+	return nil
 }
+
+// forwardBindRetry is how often a forwarded port that could not be bound is
+// tried again. A variable so a test can shorten it.
+var forwardBindRetry = 5 * time.Second
+
+// bindError is a listener that could not be opened, as opposed to one that
+// failed after it was serving.
+type bindError struct{ err error }
+
+func (e bindError) Error() string { return e.err.Error() }
+func (e bindError) Unwrap() error { return e.err }
 
 // ---------------------------------------------------------------- tcp
 
@@ -234,7 +316,7 @@ func (f *Forwarder) serveTCP(ctx context.Context, m portmap.Mapping, bound func(
 	// only on success would turn a bind error into a waiter that hangs.
 	bound()
 	if err != nil {
-		return err
+		return bindError{err}
 	}
 	defer listener.Close()
 	stopClose := context.AfterFunc(ctx, func() { listener.Close() })
@@ -242,7 +324,7 @@ func (f *Forwarder) serveTCP(ctx context.Context, m portmap.Mapping, bound func(
 
 	f.log.Infof("l3: forwarding tcp %s", m)
 
-	pool := newBackendPool(m.Targets)
+	pool := f.newPool(m.Targets)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -269,7 +351,7 @@ func (f *Forwarder) handleTCP(ctx context.Context, local net.Conn, m portmap.Map
 	f.stats.active.Add(1)
 	defer f.stats.active.Add(-1)
 
-	backend, member, err := pool.dial(ctx, "tcp")
+	backend, member, err := pool.dialReport(ctx, "tcp", func(err error) { f.noteBackend(m, err) })
 	if err != nil {
 		f.stats.refused.Add(1)
 		f.noteBackend(m, err)
@@ -277,7 +359,12 @@ func (f *Forwarder) handleTCP(ctx context.Context, local net.Conn, m portmap.Map
 	}
 	defer member.done()
 	defer backend.Close()
-	f.noteBackend(m, nil)
+	// A connection made by the far side (pck) has not heard from the target
+	// yet: it reports the verdict itself, once the first read learns it, and
+	// saying the backend answers before that would be a guess.
+	if sp, ok := backend.(interface{ StatusPending() bool }); !ok || !sp.StatusPending() {
+		f.noteBackend(m, nil)
+	}
 	f.stats.accepted.Add(1)
 
 	bridge.Join(ctx, local, backend)
@@ -333,6 +420,12 @@ func (f *Forwarder) noteBackend(m portmap.Mapping, err error) {
 			"the other server is not answering, or the token or carrier differ.", m.Listen)
 		return
 	}
+	if first && paqet.RefusedByPolicy(err) {
+		// Not a service that is down: the kharej would not dial it at all.
+		f.log.Warnf("l3: the kharej server will not connect to %s, so connections to %s are being refused: %v",
+			strings.Join(m.Targets, ", "), m.Listen, err)
+		return
+	}
 	if first {
 		// Named in full the first time: the address here is the far end of the
 		// tunnel, and a service listening only on loopback or on the public
@@ -385,7 +478,7 @@ func (f *Forwarder) serveUDP(ctx context.Context, m portmap.Mapping, bound func(
 	conn, err := net.ListenPacket("udp", m.Listen)
 	bound()
 	if err != nil {
-		return err
+		return bindError{err}
 	}
 	defer conn.Close()
 	stopClose := context.AfterFunc(ctx, func() { conn.Close() })
@@ -403,7 +496,7 @@ func (f *Forwarder) serveUDP(ctx context.Context, m portmap.Mapping, bound func(
 
 	go f.reapUDPFlows(ctx, &flows)
 
-	pool := newBackendPool(m.Targets)
+	pool := f.newPool(m.Targets)
 	buf := make([]byte, udpBufferSize)
 	for {
 		n, client, err := conn.ReadFrom(buf)
@@ -456,16 +549,9 @@ func (f *Forwarder) udpFlowFor(
 		f.limiter.Release()
 		return nil, err
 	}
-	udpConn, ok := conn.(*net.UDPConn)
-	if !ok {
-		conn.Close()
-		member.done()
-		f.limiter.Release()
-		return nil, errors.New("udp backend did not yield a UDP socket")
-	}
 
 	flowCtx, cancelFlow := context.WithCancel(ctx)
-	flow := &udpFlow{backend: f.limiter.Wrap(flowCtx, udpConn), member: member, cancel: cancelFlow}
+	flow := &udpFlow{backend: f.limiter.Wrap(flowCtx, conn), member: member, cancel: cancelFlow}
 	flow.touch()
 
 	// Two goroutines could reach here for the same client at once; only one

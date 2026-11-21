@@ -15,7 +15,6 @@ import (
 	"github.com/backpack/backpack/internal/manage"
 	"github.com/backpack/backpack/internal/menu"
 	"github.com/backpack/backpack/internal/monitor"
-	"github.com/backpack/backpack/internal/shorthttps"
 	"github.com/backpack/backpack/internal/telegram"
 	"github.com/backpack/backpack/internal/utils"
 	"github.com/backpack/backpack/internal/webui"
@@ -41,15 +40,6 @@ func main() {
 	}
 	if handled, err := mimicCommand(os.Args[1:]); handled {
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "short-https" {
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		if err := shorthttps.Run(ctx, os.Args[2:], os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

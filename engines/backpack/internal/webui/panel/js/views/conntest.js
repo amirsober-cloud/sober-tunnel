@@ -15,6 +15,7 @@ import { $, esc, copyText, flashCopied } from '../lib/dom.js';
 import * as api from '../api.js';
 import { toast, oops } from '../ui/toast.js';
 import { confirmBox } from '../ui/confirm.js';
+import { svg } from '../lib/icons.js';
 
 const PRESETS = [
   { v: 'balance', label: 'Balance', note: 'least memory' },
@@ -59,7 +60,7 @@ function stepper(st) {
   ];
   return `<ol class="ct-steps">${steps.map(([b, s], i) => {
     const cls = i < at ? 'done' : i === at ? 'on' : '';
-    return `<li class="${cls}"><span class="n">${i < at ? '✓' : i + 1}</span>
+    return `<li class="${cls}"><span class="n">${i < at ? svg('check') : i + 1}</span>
       <span class="tx"><b>${b}</b><small>${s}</small></span></li>`;
   }).join('<li class="bar" aria-hidden="true"></li>')}</ol>`;
 }
@@ -105,8 +106,9 @@ function startPane(v) {
   return `<div class="ct-l-in fade">
     <span class="ct-kick">New test</span>
     <div class="tl-lede"><b>Every transport, tried for real between this server and one kharej.</b>
-      <span>Five minutes of stability checks, then about 8–12 seconds of speed testing per healthy tunnel.
-        Download and upload use four connections and run one tunnel at a time. The test tunnels run on free ports and are
+      <span>Five minutes of stability checks, then about 16–25 seconds of speed testing per healthy tunnel.
+        Download and upload are measured with four connections and again with sixteen, one tunnel at a time;
+        the max is the best second the tunnel carried. The test tunnels run on free ports and are
         removed when it ends — nothing is left behind on either server.</span></div>
     <div class="tl-f ct-field"><span>IP paths to test</span>
       <div class="tl-seg" id="ctPathMode">${[['both','Both, sequentially'],['ipv4','IPv4'],['ipv6','IPv6'],['manual','One address']].map(([value,label]) =>
@@ -163,11 +165,12 @@ function runPane(v) {
 
 function settled(v) {
   const live = (v.rows || []).filter(r => r.status !== 'skipped');
-  const speed = live.find(r => r.phase === 'speed');
+  const speed = live.find(r => r.phase === 'speed' || r.phase === 'speed-second');
+  if (speed && speed.phase === 'speed-second') return `Speed, second pass in reverse order: ${esc(speed.name)} — ${live.filter(r => r.phase === 'speed-again').length} to go.`;
   if (speed) return `Measuring download and upload on ${esc(speed.name)} — ${live.filter(r => r.phase === 'speed-queued').length} healthy tunnels waiting.`;
   const done = live.filter(r => r.status !== 'testing').length;
-  return live.length ? `${done} of ${live.length} transports judged — the rest are still carrying their echoes.`
-    : 'The kharej is building its end of every test tunnel.';
+  return live.length ? `${done} of ${live.length} transports judged.`
+    : 'The kharej is building its end of each test tunnel.';
 }
 
 const title = s => (s ? s[0].toUpperCase() + s.slice(1) : 'Turbo');
@@ -198,6 +201,8 @@ function bestPane(v) {
       ${cell('Server address', b.host || '')}
       ${cell('Download', b.mb ? b.mb.toFixed(b.mb < 10 ? 1 : 0) : '', 'Mb/s')}
       ${cell('Upload', b.upload_mb ? b.upload_mb.toFixed(b.upload_mb < 10 ? 1 : 0) : '', 'Mb/s')}
+      ${cell('Max download', b.peak_mb ? mbps(b.peak_mb) : '', 'Mb/s')}
+      ${cell('Max upload', b.upload_peak_mb ? mbps(b.upload_peak_mb) : '', 'Mb/s')}
       ${cell('Round trip', b.rt, 'ms')}
       ${cell('Jitter', b.ji, 'ms')}
       ${cell('Worst', b.wo, 'ms')}
@@ -239,6 +244,11 @@ function rowHTML() {
     <span class="st"></span>`;
 }
 
+/* A rate as the rows print it: one decimal under ten, whole above. */
+const mbps = v => v.toFixed(v < 10 ? 1 : 0);
+/* The best second leads; the sustained rate sits beside it, quieter. */
+const rate = (avg, peak) => `<b>${mbps(Math.max(avg, peak || 0))}</b> Mb/s${peak > avg ? ` <span class="mx">avg ${mbps(avg)}</span>` : ''}`;
+
 /* A row is patched, never redrawn, so its bar slides from where it was and the
    list does not flicker every two seconds. */
 function fillRow(n, r) {
@@ -246,18 +256,20 @@ function fillRow(n, r) {
   const testing = r.status === 'testing';
   const share = Math.max(0, Math.min(1, testing ? (r.tried / total) : (r.ok / total)));
   n.className = `ct-row ${tone(r.status)}${r.uploadMbps ? ' has-speed' : ''}`;
-  n.querySelector('.nm b').textContent = r.name;
+  const nb = n.querySelector('.nm b');
+  nb.textContent = r.name;
+  nb.title = r.name;
   const sm = n.querySelector('.nm small');
-  sm.textContent = r.detail || (r.uploadMbps ? '4 connections · download / upload' : '');
+  sm.textContent = r.detail || (r.uploadMbps ? 'max: best second of both passes' : '');
   sm.title = r.detail || '';
   n.querySelector('.bar i').style.setProperty('--w', (share * 100).toFixed(1) + '%');
   n.querySelector('.ec').textContent = r.status === 'skipped' ? '—' : `${testing ? r.tried : r.ok}/${total}`;
   n.querySelector('.fg').innerHTML = [
     r.rtt ? `<span><b>${r.rtt}</b> ms</span>` : '',
-    r.mbps ? `<span>↓ <b>${r.mbps.toFixed(r.mbps < 10 ? 1 : 0)}</b> Mb/s</span>` : '',
-    r.uploadMbps ? `<span>↑ <b>${r.uploadMbps.toFixed(r.uploadMbps < 10 ? 1 : 0)}</b> Mb/s</span>` : '',
+    r.mbps ? `<span>↓ ${rate(r.mbps, r.peakMbps)}</span>` : '',
+    r.uploadMbps ? `<span>↑ ${rate(r.uploadMbps, r.uploadPeakMbps)}</span>` : '',
   ].join('');
-  n.querySelector('.st').textContent = r.phase === 'speed' ? 'Speed test' : r.phase === 'speed-queued' ? 'Queued' : statusWord(r.status);
+  n.querySelector('.st').textContent = r.phase === 'speed' || r.phase === 'speed-second' ? 'Speed test' : r.phase === 'speed-queued' ? 'Queued' : statusWord(r.status);
 }
 
 function emptyRight(st) {
@@ -265,8 +277,8 @@ function emptyRight(st) {
   return `<div class="ct-empty ${waiting ? 'live' : ''}">
     <div class="ct-radar"><i></i><i></i><i></i><span>${ICON.radar}</span></div>
     <b>${waiting ? 'Waiting for the kharej to join' : 'Results land here'}</b>
-    <small>${waiting ? 'The moment it checks in, every transport gets a row and starts filling.'
-      : 'Each transport gets a row once the kharej runs its line: held, unstable or down, with its round trip and speed.'}</small>
+    <small>${waiting ? 'Each transport gets a row once it checks in.'
+      : 'Each transport gets a row once the kharej runs its line.'}</small>
     <div class="ct-ghosts">${'<span><i></i><i></i><i></i></span>'.repeat(4)}</div>
   </div>`;
 }
@@ -510,7 +522,7 @@ export function connTestView(ctx) {
       return;
     }
     if (b.id === 'ctStop' || b.id === 'ctStopPaths') {
-      if (!await confirmBox({ title: 'Stop the test?', body: 'Every test tunnel on this server is taken down. The kharej notices on its own and stops too.', go: 'Stop' })) return;
+      if (!await confirmBox({ title: 'Stop the test?', body: 'Every test tunnel here is taken down; the kharej stops too.', go: 'Stop' })) return;
       try { paint(await api.connTestStop()); toast('Stopping the test…'); } catch (e) { oops(e); }
       setTimeout(load, 1200);
     }

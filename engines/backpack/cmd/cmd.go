@@ -186,7 +186,7 @@ func Run(configPath string, ctx context.Context) {
 // runEngine runs one tunnel until ctx ends.
 func runEngine(cfg *config.Config, ctx context.Context, configPath string, applyTuning bool) {
 	cleanupPck := func() {
-		network.CleanupPckGuards(cfg.Server.Token, cfg.Client.Token, cfg.Direct.Token, cfg.L3.Token)
+		network.CleanupPckGuards(cfg.Server.Token, cfg.Client.Token, cfg.L3.Token)
 	}
 	// Recover orphaned tags even if an earlier tunnel was deleted or its token
 	// was replaced. The ownership checks preserve every live PCK carrier.
@@ -202,8 +202,13 @@ func runEngine(cfg *config.Config, ctx context.Context, configPath string, apply
 		runL3Tunnel(cfg, ctx, configPath)
 		return
 	}
-	if cfg.Direct.Enabled() {
-		runDirectTunnel(cfg, ctx, configPath)
+	// The [direct] stream tunnel is gone (v2.0.0). validateConfig refuses
+	// such a file before anything gets here, at start and on every reload;
+	// this is the same refusal for a path that reached runEngine some other
+	// way, so it never falls through to the reverse branch and dies with a
+	// message about [server] and [client] that says nothing of what is wrong.
+	if cfg.Direct.Present() {
+		logger.Fatalf("%v", config.ErrDirectRemoved)
 		return
 	}
 
@@ -227,6 +232,7 @@ func runEngine(cfg *config.Config, ctx context.Context, configPath string, apply
 		stopMetrics := startMetrics(ctx, configPath, string(cfg.Server.Transport), "server")
 		defer stopMetrics()
 
+		cfg.Server.PeerPinPath = network.PeerPinPath(configPath)
 		srv := server.NewServer(&cfg.Server, ctx) // server
 		reportZeroCopy(ctx)
 		// Start blocks until its own context ends and everything it owns has
@@ -247,6 +253,7 @@ func runEngine(cfg *config.Config, ctx context.Context, configPath string, apply
 		stopMetrics := startMetrics(ctx, configPath, string(cfg.Client.Transport), "client")
 		defer stopMetrics()
 
+		cfg.Client.PeerPinPath = network.PeerPinPath(configPath)
 		clnt := client.NewClient(&cfg.Client, ctx) // client
 		reportZeroCopy(ctx)
 		// Blocks until the generation is over; see the server case above.

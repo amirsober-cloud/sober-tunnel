@@ -72,7 +72,7 @@ func (m *TLSMimic) Accept(conn net.Conn) (net.Conn, net.Conn, error) {
 		return nil, buildReplayConn(tlsConn, rec), err // ErrAuth -> decoy
 	}
 	rec.Stop()
-	return rec, nil, nil // yamux runs directly over the TLS conn (single crypto layer)
+	return securestream.MeterAuthenticatedConn(rec), nil, nil // one TLS crypto layer
 }
 
 func (m *TLSMimic) nextProtos() []string {
@@ -144,7 +144,7 @@ func (c *TLSClient) Dial(conn net.Conn) (net.Conn, error) {
 	if err := clientProveTLS(uconn, c.Token, certFP); err != nil {
 		return nil, err
 	}
-	return uconn, nil
+	return securestream.MeterAuthenticatedConn(uconn), nil
 }
 
 func (c *TLSClient) Name() string { return "tls" }

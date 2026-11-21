@@ -2,6 +2,7 @@ package securestream
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"sync/atomic"
 	"time"
@@ -61,4 +62,24 @@ func StartMetrics(path string) {
 			publish()
 		}
 	}()
+}
+
+// MeterAuthenticatedConn accounts for plaintext on mimics whose TLS layer
+// supplies encryption instead of SecureConn. Apply only after authentication;
+// unauthenticated probes and decoy replies must not count as tunnel traffic.
+func MeterAuthenticatedConn(conn net.Conn) net.Conn {
+	return &meteredConn{Conn: conn}
+}
+
+type meteredConn struct{ net.Conn }
+
+func (c *meteredConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	receivedBytes.Add(uint64(n))
+	return n, err
+}
+func (c *meteredConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	sentBytes.Add(uint64(n))
+	return n, err
 }

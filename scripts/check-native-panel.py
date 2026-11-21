@@ -152,6 +152,18 @@ def main():
                                         "127.0.0.1:11081", "https://example.com", "-o", "/dev/null",
                                         "-w", "%{http_code}"], text=True)
         assert code == "200", code
+        for _ in range(20):
+            with client.open(base + "api/stats", timeout=15) as response:
+                stats = json.load(response)
+            traffic = stats.get("camouflage", {})
+            if traffic.get("sent", 0) > 0 and traffic.get("received", 0) > 0:
+                assert stats["totalSentBytes"] >= traffic["sent"]
+                assert stats["totalRecvBytes"] >= traffic["received"]
+                print("CAMOUFLAGE_TOTALS_OK: authenticated TLS traffic included in Overview sent/received totals")
+                break
+            time.sleep(0.5)
+        else:
+            raise AssertionError("TLS tunnel traffic missing from Overview")
         if os.environ.get("SOBER_TEST_TUN") == "1":
             # Only this disposable container's net namespace is modified.
             query_id = secrets.randbelow(65536)

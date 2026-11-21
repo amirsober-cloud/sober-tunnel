@@ -20,6 +20,8 @@ func hubYamuxConfig() *yamux.Config {
 	c.EnableKeepAlive = false        // we run a custom randomized heartbeat
 	c.MaxStreamWindowSize = 16 << 20 // 16MB: headroom for 200-300 Mbps at high RTT
 	c.StreamCloseTimeout = 3 * time.Minute
+	c.ConnectionWriteTimeout = 8 * time.Second
+	c.StreamOpenTimeout = 8 * time.Second
 	return c
 }
 
@@ -187,7 +189,7 @@ func (d *endpointDialer) attemptOrder() []config.Endpoint {
 			seen[i] = true
 		}
 	}
-	order = append(order, cooling...)
+	// Cooling paths are retried only if no eligible path remains, or after expiry.
 	if len(order) > dialMaxAttempts {
 		order = order[:dialMaxAttempts]
 	}
@@ -255,9 +257,9 @@ func (d *endpointDialer) dial() (*yamux.Session, string, error) {
 			lastErr = err
 			continue
 		}
-		d.recordSuccess(ep.Target)
+		// Admission is provisional: only sustained in-session round trips reset failures.
 		slog.Info("pipe established", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target)
-		go keepAlive(session)
+		go d.monitorSession(session, ep)
 		return session, ep.Mimic, nil
 	}
 	if lastErr == nil {
@@ -266,15 +268,36 @@ func (d *endpointDialer) dial() (*yamux.Session, string, error) {
 	return nil, "", lastErr
 }
 
-// keepAlive sends a randomized-interval Yamux ping to evade DPI periodicity checks.
-func keepAlive(s *yamux.Session) {
+// monitorSession tests the existing authenticated encrypted session. It does not
+// contact an external site or create extra TCP connections. Handshake success
+// alone must not rehabilitate a path that blackholes traffic seconds later.
+func (d *endpointDialer) monitorSession(session *yamux.Session, ep config.Endpoint) {
+	d.monitorSessionWithTiming(session, ep, func(successes int) time.Duration {
+		if successes < 2 {
+			return time.Duration(mrand.IntN(6)+8) * time.Second
+		}
+		return time.Duration(mrand.IntN(26)+20) * time.Second
+	}, 8*time.Second)
+}
+func (d *endpointDialer) monitorSessionWithTiming(session *yamux.Session, ep config.Endpoint, interval func(int) time.Duration, timeout time.Duration) {
+	successes := 0
 	for {
-		if s.IsClosed() {
+		delay := interval(successes)
+		timer := time.NewTimer(delay)
+		select {
+		case <-session.CloseChan():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+		if err := verifySession(session, timeout); err != nil {
+			d.recordFailure(ep.Target)
+			slog.Warn("established path failed round-trip; cooling after repeated failures", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target, "err", err)
 			return
 		}
-		time.Sleep(time.Duration(mrand.IntN(26)+20) * time.Second)
-		if _, err := s.Ping(); err != nil {
-			return
+		successes++
+		if successes == 2 {
+			d.recordSuccess(ep.Target)
 		}
 	}
 }

@@ -73,7 +73,6 @@ const samples = {
   logs: [['t1'], ['t1', 'peer']], history: [['t1'], ['t1', 30]],
   confHistory: [['t1']], confRestore: [['t1', 1790000000]],
   backupImport: [[new Blob(['{}'])]], autoBackup: [[]], setAutoBackup: [[true], [false]],
-  showcase: [[]],
   sessions: [[]], sessionRevoke: [['s1']], sessionRevokeOthers: [[]],
   setPassword: [[{ password: 'a-new-password' }]],
   totp: [[]], totpStart: [[]], totpConfirm: [['123456']], totpDisable: [['pw']], totpRecovery: [['pw']],

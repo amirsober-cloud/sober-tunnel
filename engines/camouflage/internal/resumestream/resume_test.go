@@ -229,3 +229,32 @@ func TestRepeatedLaneLossKeepsOneOrderedStream(t *testing.T) {
 		t.Fatal("resume duplicated backend or corrupted bytes", err)
 	}
 }
+
+func TestReplayOfBufferedBytesAfterFIN(t *testing.T) {
+	c := newConn()
+	defer c.Close()
+	a, b := net.Pipe()
+	defer b.Close()
+	c.wire = a
+	c.rx = []byte("reply")
+	c.received = 5
+	c.rxFIN = true
+	go c.readWire(a)
+	if err := writeFrame(b, dataFrame, 0, []byte("reply")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFrame(b, finFrame, 5, nil); err != nil {
+		t.Fatal(err)
+	}
+	c.SetReadDeadline(time.Now().Add(time.Second))
+	got, err := io.ReadAll(c)
+	if err != nil || string(got) != "reply" {
+		t.Fatalf("reply after FIN replay: %q %v", got, err)
+	}
+	c.mu.Lock()
+	closed := c.closed
+	c.mu.Unlock()
+	if closed {
+		t.Fatal("duplicate unconsumed bytes after FIN closed the logical stream")
+	}
+}

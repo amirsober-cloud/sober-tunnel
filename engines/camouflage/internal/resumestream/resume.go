@@ -323,7 +323,7 @@ func (c *Conn) readWire(wire net.Conn) {
 			c.rxFIN = true
 			c.notify()
 		case dataFrame:
-			if c.rxFIN || offset > c.received {
+			if offset > c.received || (c.rxFIN && uint64(len(payload)) > c.received-offset) {
 				c.mu.Unlock()
 				c.Close()
 				return

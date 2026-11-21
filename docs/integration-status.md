@@ -1,5 +1,10 @@
 # Integration status
 
+Historical report for the initial integration. Current independent-core and v2
+status is documented in [v0.4.0 validation](validation-v0.4.0.md) and
+[migration details](v2-integration.md).
+
+
 Updated 2026-11-10 after testing on an Ubuntu 24.04 x86_64 VPS with Go 1.26.10.
 The combined binary builds and the HTTPS panel and monitor are installed as
 experimental systemd services. This is a tested integration preview, not a

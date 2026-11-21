@@ -30,13 +30,19 @@ bash <(curl -fsSL https://raw.githubusercontent.com/amirsober-cloud/sober-tunnel
 پشتیبانی می‌شود؛ در توزیع‌های دیگر ابتدا `git`، `curl`، `tar`، `python3` و
 `ca-certificates` را نصب کنید. ساخت اولیه ممکن است چند دقیقه طول بکشد.
 بعد از نصب، دستور `sober-tunnel` آدرس پنل و مشخصات ورود را نشان می‌دهد.
-HTTPS اولیه گواهی خودامضا دارد. این نسخه آزمایشی است.
+پنل بدون گواهی با HTTP باز می‌شود؛ پس از تنظیم گواهی معتبر می‌توانید HTTPS را فعال کنید.
 
 موتور camouflage از بخش **Tunnels → Add tunnel → Camouflage** ساخته
 و مدیریت می‌شود. فرم‌های اصلی، Persona، توکن pairing، تست اتصال و سرعت و
 تنظیمات آمادهٔ x-ui در پنل قرار دارند. ابزار native هم با نام
-`sober-tunnel-mimic` نصب می‌شود؛ اجرای تونل‌ها از باینری یکپارچهٔ `sober-tunnel` است.
+`sober-tunnel-mimic` نصب می‌شود؛ تونل‌های Camouflage با همین هستهٔ مستقل و سرویس جداگانه اجرا می‌شوند.
 راهنمای اتصال از SOCKS محلی `127.0.0.1` در [راهنمای x-ui](docs/x-ui.md) آمده است.
+
+## v0.4.0 migration
+
+Upgrade both PCK endpoints together. Camouflage TCP continuation is optional and
+disabled by default; enable it only after both ends are upgraded. See the
+[migration notes](docs/v2-integration.md) and [validation report](docs/validation-v0.4.0.md).
 
 ## Build and install
 

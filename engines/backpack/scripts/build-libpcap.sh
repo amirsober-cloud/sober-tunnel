@@ -20,11 +20,8 @@
 #   AR, RANLIB       the matching archiver (zig: "zig ar", "zig ranlib")
 #   CFLAGS           extra flags, for the target CPU
 #
-# libpcap's release tarball does not ship its generated parser and scanner, so
-# it needs flex and bison. When they are missing (a bare Debian/Ubuntu runner
-# has them; a minimal container may not) the script builds m4, bison and flex
-# from source into $BUILD_TOOLS (default ~/.cache/backpack-build-tools), again
-# without root.
+# The release build requires flex and bison. Install these build tools with
+# the host package manager; no unchecked tool bootstrap is performed.
 #
 # Paths with a space in them (a checkout in "My Projects/") break autotools'
 # install step, so everything is built in a temporary directory and the finished

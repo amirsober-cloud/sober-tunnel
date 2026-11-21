@@ -15,6 +15,8 @@ Use an encrypted transport when confidentiality is required.
 
 PCK uses the new upstream paqet engine and the pinned kcp/smux forks. Upgrade
 both PCK endpoints together; an old PCK endpoint is not wire compatible.
+The legacy layer-3 "udp" and "quic" carriers were removed upstream; migrate
+those configs before updating. Reverse UDP/QUIC transports remain supported.
 GRE and IPv6 GRE are layer-3 options, not encryption or a guarantee against DPI.
 Source builds verify libpcap 1.11.0 against a pinned SHA-256 and link it statically.
 The archive includes libpcap and fork licenses. Runtime hosts need no libpcap.

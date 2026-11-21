@@ -219,7 +219,10 @@ func write(fields []field) {
 }
 
 func version() string {
-	b, err := os.ReadFile("VERSION")
+	b, err := os.ReadFile(filepath.Join("..", "..", "VERSION"))
+	if err != nil {
+		b, err = os.ReadFile("VERSION")
+	}
 	if err != nil {
 		return "(unknown)"
 	}

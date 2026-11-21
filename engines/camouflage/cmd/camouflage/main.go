@@ -36,7 +36,7 @@ import (
 // ip_forward), with a RouterOS-7.22 ip-rule-priority guard. Validated end-to-end on
 // a real RouterOS CHR and on a plain Linux router. Wire protocol UNCHANGED since
 // v0.8.0; gateway/TUN are hub-side only, so v0.11 hubs interoperate with v0.9 foreigns.
-const AppVersion = "v0.3.1"
+const AppVersion = "v0.3.2"
 
 func main() {
 	if len(os.Args) == 3 && os.Args[1] == "panel-job" {

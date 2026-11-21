@@ -10,7 +10,7 @@ import (
 
 const (
 	// Version of the backpack engine.
-	Version    = "v0.3.1"
+	Version    = "v0.3.2"
 	EngineName = "SoberLinkPack"
 
 	// RepoOwner/RepoName identify the GitHub repository used by the installer

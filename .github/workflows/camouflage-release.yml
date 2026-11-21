@@ -2,7 +2,7 @@ name: Build and validate release
 
 on:
   push:
-    tags: ["v0.3.1"]
+    tags: ["v0.3.2"]
   workflow_dispatch:
     inputs:
       version:

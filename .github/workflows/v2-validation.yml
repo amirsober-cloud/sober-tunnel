@@ -24,6 +24,8 @@ jobs:
       - name: Check continuation and pool races
         run: go test -race -count 5 -timeout 3m ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/ingress ./engines/camouflage/internal/pool
       - name: Validate all engine packages
+        env:
+          BACKPACK_CURRENT_BINARY: ${{ github.workspace }}/build/sober-tunnel
         run: go test -p 4 -timeout 12m ./engines/backpack/... ./engines/camouflage/...
       - name: Check browser code
         run: |
@@ -68,4 +70,29 @@ jobs:
         if: always()
         with:
           name: raw-carrier-evidence
-          path: build/*-live.log
+          path: build/*-live.log  compatibility:
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-binaries
+          path: build
+      - name: Fetch pinned previous distribution
+        run: |
+          sudo apt-get update && sudo apt-get install -y libpcap-dev
+          mkdir -p build/previous
+          curl -fL --retry 3 https://github.com/amirsober-cloud/sober-tunnel/releases/download/v0.3.2/sober-tunnel_linux_amd64.tar.gz -o build/previous.tar.gz
+          echo 'f7715f1e7b6bdead9e5c9fe0195884f2af39e7c1b7a02f4d62abb42378de4d01  build/previous.tar.gz' | sha256sum -c -
+          tar -xzf build/previous.tar.gz -C build/previous
+          chmod +x build/sober-tunnel build/previous/sober-tunnel
+      - name: Mixed-version carriers and persistent downgrade protection
+        env:
+          BACKPACK_CURRENT_BINARY: ${{ github.workspace }}/build/sober-tunnel
+          BACKPACK_PREV_BINARY: ${{ github.workspace }}/build/previous/sober-tunnel
+        run: go test -v -timeout 10m ./engines/backpack/internal/e2e -run 'Test(ThePreviousReleaseStillTalksToThisOne|AProvedTunnelRefusesTheOlderHandshake)$'

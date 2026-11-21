@@ -5,6 +5,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 if (!$ReleasePublicKey -and (Test-Path -LiteralPath (Join-Path $repoRoot 'docs/release-public-key.txt'))) {
     $ReleasePublicKey = [IO.File]::ReadAllText((Join-Path $repoRoot 'docs/release-public-key.txt')).Trim()
 }
+$oldCFlags = $env:CGO_CFLAGS; $oldLDFlags = $env:CGO_LDFLAGS
 $oldOS = $env:GOOS; $oldArch = $env:GOARCH; $oldCGO = $env:CGO_ENABLED
 try {
     $env:GOOS = 'linux'; $env:GOARCH = $Architecture; $env:CGO_ENABLED = '1'
@@ -22,4 +23,4 @@ try {
         go build -p 1 -trimpath -ldflags '-s -w' -o (Join-Path $repoRoot 'build/sober-tunnel-mimic') ./cmd/camouflage
         if ($LASTEXITCODE -ne 0) { throw 'sober-tunnel native tools build failed' }
     } finally { Pop-Location }
-} finally { $env:GOOS = $oldOS; $env:GOARCH = $oldArch; $env:CGO_ENABLED = $oldCGO }
+} finally { $env:GOOS = $oldOS; $env:GOARCH = $oldArch; $env:CGO_ENABLED = $oldCGO; $env:CGO_CFLAGS = $oldCFlags; $env:CGO_LDFLAGS = $oldLDFlags }

@@ -11,7 +11,8 @@ $buildDir = Join-Path $repoRoot 'build'
 
 $archiveName = "sober-tunnel_linux_$Architecture.tar.gz"
 $archivePath = Join-Path $buildDir $archiveName
-tar -czf $archivePath -C $buildDir sober-tunnel sober-tunnel-mimic -C $repoRoot LICENSE NOTICE engines/backpack/LICENSE engines/camouflage/LICENSE
+Copy-Item -LiteralPath (Join-Path $env:LIBPCAP_PREFIX 'LICENSE.libpcap') -Destination (Join-Path $buildDir 'LICENSE.libpcap')
+tar -czf $archivePath -C $buildDir sober-tunnel sober-tunnel-mimic LICENSE.libpcap -C $repoRoot LICENSE NOTICE engines/backpack/LICENSE engines/camouflage/LICENSE engines/backpack/internal/thirdparty/kcp-go/LICENSE engines/backpack/internal/thirdparty/smux/LICENSE
 if ($LASTEXITCODE -ne 0) { throw 'Release archive creation failed' }
 
 $checksums = Get-ChildItem -LiteralPath $buildDir -Filter 'sober-tunnel_linux_*.tar.gz' |

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -195,5 +196,36 @@ func TestReceiveWindowBackpressuresWithoutDeadlockingEcho(t *testing.T) {
 	}
 	if err := <-writeDone; err != nil || !bytes.Equal(got, payload) {
 		t.Fatal("credit accounting corrupted or stalled stream", err)
+	}
+}
+
+func TestRepeatedLaneLossKeepsOneOrderedStream(t *testing.T) {
+	registry := NewRegistry()
+	var opens atomic.Int32
+	opener, drop := testOpener(registry, func(c net.Conn) { opens.Add(1); io.Copy(c, c) })
+	conn, err := Dial(opener)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
+	payload := bytes.Repeat([]byte("repeated-loss"), 180000)
+	written := make(chan error, 1)
+	go func() { _, err := conn.Write(payload); written <- err }()
+	got := make([]byte, len(payload))
+	offset := 0
+	for i := 0; i < 3; i++ {
+		if _, err := io.ReadFull(conn, got[offset:offset+65536]); err != nil {
+			t.Fatal(err)
+		}
+		offset += 65536
+		drop()
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, err := io.ReadFull(conn, got[offset:]); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-written; err != nil || !bytes.Equal(got, payload) || opens.Load() != 1 {
+		t.Fatal("resume duplicated backend or corrupted bytes", err)
 	}
 }

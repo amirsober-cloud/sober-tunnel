@@ -36,3 +36,36 @@ jobs:
           path: |
             build/sober-tunnel
             build/sober-tunnel-mimic
+  raw-carriers:
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-binaries
+          path: build
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y iproute2 iptables bc
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          chmod +x build/sober-tunnel build/sober-tunnel-mimic
+      - name: Direct PCK, IPv4 GRE and IPv6 GRE on isolated networks
+        run: |
+          export BIN="$PWD/build/sober-tunnel"
+          for carrier in pck gre ip6gre; do
+            export W="$(mktemp -d)"
+            timeout 240 unshare --map-auto --map-root-user --net --mount --fork -- bash engines/backpack/internal/e2e/testdata/l3live.sh "$carrier" | tee "build/$carrier-live.log"
+            grep -q '^RESULT OK' "build/$carrier-live.log"
+          done
+      - name: Reverse PCK interface recovery
+        run: |
+          export BIN="$PWD/build/sober-tunnel" W="$(mktemp -d)"
+          timeout 240 unshare --map-auto --map-root-user --net --mount --fork -- bash engines/backpack/internal/e2e/testdata/revpcklive.sh | tee build/reverse-pck-live.log
+          grep -q '^RESULT OK' build/reverse-pck-live.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: raw-carrier-evidence
+          path: build/*-live.log

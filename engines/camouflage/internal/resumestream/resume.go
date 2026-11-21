@@ -422,7 +422,6 @@ func (c *Conn) writeWire(wire net.Conn, cursor uint64) {
 }
 func (c *Conn) handshake(wire net.Conn, fresh bool) error {
 	_ = wire.SetDeadline(time.Now().Add(8 * time.Second))
-	defer wire.SetDeadline(time.Time{})
 	var request [27]byte
 	request[0] = Type
 	request[1] = 1
@@ -496,7 +495,6 @@ type Registry struct {
 func NewRegistry() *Registry { return &Registry{streams: map[[16]byte]*Conn{}} }
 func (r *Registry) Accept(wire net.Conn, serve func(net.Conn)) error {
 	_ = wire.SetDeadline(time.Now().Add(8 * time.Second))
-	defer wire.SetDeadline(time.Time{})
 	var h [26]byte
 	if _, err := io.ReadFull(wire, h[:]); err != nil {
 		return err

@@ -38,7 +38,7 @@ try {
   await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
   socket.addEventListener('message',event=>{
     const message=JSON.parse(event.data);
-    if(message.method==='Runtime.exceptionThrown')errors.push(message.params.exceptionDetails.text);
+    if(message.method==='Runtime.exceptionThrown')errors.push(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
     const entry=waiting.get(message.id);if(!entry)return;waiting.delete(message.id);
     if(message.error)entry.reject(new Error(message.error.message));else entry.resolve(message.result);
   });
@@ -79,7 +79,7 @@ try {
   await until("document.querySelector('#mimic-job').textContent.startsWith('Finished')");
   assert(await evaluate("document.querySelector('#mimic-test-output').textContent.includes('OK')"),'Probe output missing from UI');
   await evaluate("document.querySelector('#mimic-new').click();delete window.__pairToken;true");
-  assert.equal(errors.length,0,'Browser runtime errors');
+  assert.equal(errors.length,0,'Browser runtime errors: '+errors.join('\n'));
   if(process.env.SOBER_SCREENSHOT){const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(process.env.SOBER_SCREENSHOT,Buffer.from(shot.data,'base64'));}
   console.log('NATIVE_BROWSER_OK: Tunnels engine choice, native forms, pairing round-trip, x-ui JSON, async diagnostic UI, zero runtime exceptions');
 } finally {

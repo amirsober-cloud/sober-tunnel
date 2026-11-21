@@ -55,6 +55,7 @@ globalThis.fetch = async (url, opts = {}) => {
 // the run: a call nobody checks is how the ones this guards against got in.
 const node = { name: 'n1', host: '203.0.113.9', sshPort: '22', user: 'root', password: 'pw' };
 const samples = {
+ mimicInstances: [[]], mimicOptions: [[]], mimicSettings: [['tr','']], mimicLogs: [['tr','']], mimicAction: [[{name:'tr',action:'preflight'},'']],
   stats: [[]], tunnels: [[]],
   tunnelAction: ['start', 'stop', 'restart', 'delete'].map(a => ['t1', a])
     .concat([['t1', 'delete', { alsoFarEnd: '1' }]]),

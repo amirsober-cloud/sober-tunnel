@@ -51,7 +51,7 @@ func TestTheDayStripIsRefetched(t *testing.T) {
 	// And the redraw has to notice new data. The region helper replaces a block
 	// only when its signature changes, so the strip's signature must be built
 	// from the totals themselves.
-	if !strings.Contains(src, "region('ovDays', JSON.stringify(dayTotals)") {
+	if !strings.Contains(src, "region('ovDays', JSON.stringify([dayTotals,") {
 		t.Error("the day strip's repaint signature is no longer derived from the " +
 			"totals, so refetched data would not be drawn")
 	}

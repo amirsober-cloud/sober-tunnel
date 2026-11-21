@@ -9,17 +9,17 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/backpack/backpack/config"
-	"github.com/backpack/backpack/internal/app"
 )
 
 func TestOrdinaryEditPreservesSkipOptzForBothRoles(t *testing.T) {
-	if err := os.MkdirAll(app.ConfigDir, 0755); err != nil {
+	root := useSpecRoot(t)
+	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatal(err)
 	}
 	for _, role := range []string{"server", "client"} {
 		for _, skip := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/%t", role, skip), func(t *testing.T) {
-				file, err := os.CreateTemp(app.ConfigDir, "skip-optz-edit-*.toml")
+				file, err := os.CreateTemp(root, "skip-optz-edit-*.toml")
 				if err != nil {
 					t.Fatal(err)
 				}

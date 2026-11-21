@@ -14,7 +14,7 @@
 #       scripts/build-libpcap.sh /opt/libpcap-arm64          # a cross build
 #
 # Environment:
-#   LIBPCAP_VERSION  default 1.10.6
+#   LIBPCAP_VERSION  default 1.11.0
 #   CC               the C compiler (default gcc)
 #   HOST             configure's --host triple, for a cross build
 #   AR, RANLIB       the matching archiver (zig: "zig ar", "zig ranlib")
@@ -36,13 +36,14 @@
 # libpcap and no libc to speak of.
 set -euo pipefail
 
-VERSION="${LIBPCAP_VERSION:-1.10.6}"
+VERSION="${LIBPCAP_VERSION:-1.11.0}"
 PREFIX="${1:-${LIBPCAP_PREFIX:-$HOME/.local/libpcap}}"
+SHA256="${LIBPCAP_SHA256:-596389bc8560ea027dff9db8aaf6c173d992366d9aef4baf5d7c6d180b4d49ad}"
 CC="${CC:-gcc}"
 HOST_FLAG=()
 [[ -n "${HOST:-}" ]] && HOST_FLAG=(--host="$HOST")
 
-if [[ -f "$PREFIX/lib/libpcap.a" && -f "$PREFIX/include/pcap.h" && "${FORCE:-0}" != 1 ]]; then
+if [[ -f "$PREFIX/lib/libpcap.a" && -f "$PREFIX/include/pcap.h" && "$(cat "$PREFIX/.source-sha256" 2>/dev/null || true)" == "$SHA256" && "${FORCE:-0}" != 1 ]]; then
   echo "libpcap $VERSION already in $PREFIX"
   exit 0
 fi
@@ -62,31 +63,11 @@ fetch() { # url sha-less download with retries
   echo "could not download $url" >&2; return 1
 }
 
-need_tools() { command -v flex >/dev/null && command -v bison >/dev/null; }
-if ! need_tools; then
-  TOOLS="${BUILD_TOOLS:-$HOME/.cache/backpack-build-tools}"
-  if [[ ! -x "$TOOLS/bin/flex" || ! -x "$TOOLS/bin/bison" ]]; then
-    echo "flex/bison not found: building them into $TOOLS"
-    mkdir -p "$TOOLS"
-    (
-      cd "$WORK"
-      export CFLAGS="-std=gnu11 -O2"   # gnulib in these releases predates C23
-      unset CC HOST AR RANLIB          # tools run on the build machine
-      export PATH="$TOOLS/bin:$PATH"
-      build() { # name version url
-        fetch "$3" "$1.tar"; mkdir "$1-src"; tar -xf "$1.tar" -C "$1-src" --strip-components=1
-        (cd "$1-src" && ./configure --prefix="$TOOLS" >/dev/null && make -j"$(nproc)" >/dev/null && make install >/dev/null)
-      }
-      command -v m4 >/dev/null || build m4 1.4.19 https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.xz
-      build bison 3.8.2 https://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.xz
-      build flex 2.6.4 https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz
-    )
-  fi
-  export PATH="$TOOLS/bin:$PATH"
-fi
+command -v flex >/dev/null && command -v bison >/dev/null || { echo "Install flex and bison before building libpcap" >&2; exit 1; }
 
 cd "$WORK"
 fetch "https://www.tcpdump.org/release/libpcap-$VERSION.tar.gz" libpcap.tar.gz
+echo "$SHA256  libpcap.tar.gz" | sha256sum -c -
 tar -xzf libpcap.tar.gz
 cd "libpcap-$VERSION"
 export CC
@@ -100,4 +81,6 @@ make -j"$(nproc)" >/dev/null
 make install >/dev/null
 mkdir -p "$PREFIX"
 cp -a "$STAGE/." "$PREFIX/"
+cp LICENSE "$PREFIX/LICENSE.libpcap"
+printf '%s\n' "$SHA256" > "$PREFIX/.source-sha256"
 echo "libpcap $VERSION installed in $PREFIX"

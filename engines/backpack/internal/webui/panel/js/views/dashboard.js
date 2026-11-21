@@ -15,6 +15,7 @@ import * as api from '../api.js';
 import { toast, oops, onFix } from '../ui/toast.js';
 import { confirmBox } from '../ui/confirm.js';
 import { go } from '../router.js';
+import { statsOf, trendText, NEUTRAL_PCT } from '../lib/trend.js';
 import { mountMimicFleet } from '../ui/mimic-fleet.js';
 
 /* ---- the rate chart behind a card ---------------------------------------- */
@@ -595,7 +596,7 @@ export function dashboard(ctx) {
         title: `Delete <q>${esc(name)}</q>?`,
         body: 'Its config and its service are removed. This cannot be undone.',
         lines: [
-          { text: `/etc/sober-tunnel/${name}.json` },
+          { text: `/etc/sober-tunnel/${name}.toml` },
           { text: `sober-tunnel-${name}.service` },
         ],
         go: 'Delete', danger: true,

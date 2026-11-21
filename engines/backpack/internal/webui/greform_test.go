@@ -137,7 +137,7 @@ func TestTheDeleteConfirmationNamesTheConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := string(js)
-	if !strings.Contains(src, "`/etc/backpack/${name}.toml`") || strings.Contains(src, "`/etc/backpack/${name}.json`") {
+	if !strings.Contains(src, "`/etc/sober-tunnel/${name}.toml`") || strings.Contains(src, "`/etc/sober-tunnel/${name}.json`") {
 		t.Error("the delete confirmation does not name the tunnel's .toml config")
 	}
 }

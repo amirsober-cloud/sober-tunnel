@@ -17,7 +17,7 @@ them both ends have to agree on. This says what exists.
 | Key | Type | Description |
 |---|---|---|
 | `client` | `ClientConfig` | Client is the reverse tunnel's kharej end: it dials the server and delivers each connection to the service behind it. |
-| `direct` | `DirectConfig` | Direct is a direct layer-4 tunnel — the same forwarded ports, dialled the other way round. Present only in a configuration that asks for one, on the same terms as L3 above. See config/direct.go. |
+| `direct` | `LegacyDirectConfig` | Direct is the [direct] stream tunnel, removed in v2.0.0. It is read only so that such a file is recognised and refused by name rather than read as empty; see config/legacydirect.go. |
 | `l3` | `L3Config` | L3 is a direct layer-3 tunnel, and is present only in a configuration that asks for one. It shares nothing with Server and Client: a file without an [l3] table leaves this zero, L3.Enabled() reads false, and the reverse tunnel runs exactly as it always has. See config/l3.go. |
 | `server` | `ServerConfig` | Server is the reverse tunnel's Iran end: it listens for the client and exposes the forwarded ports. Present only in a configuration that asks for one; the three engines are mutually exclusive. |
 
@@ -36,6 +36,15 @@ them both ends have to agree on. This says what exists.
 | `kcp_resend` | `int` | Resend is how many duplicate acknowledgements trigger a fast retransmit. |
 | `kcp_sndwnd` | `int` | SndWnd is the send window in packets. |
 
+## LegacyDirectConfig
+
+| Key | Type | Description |
+|---|---|---|
+| `addr` | `string` | Addr is the kharej server's host:port on Iran, or the bind address on kharej — shown on the tunnel list so the operator can tell which one it was. |
+| `ports` | `[]string` | Ports are the forwarded ports the Iran side exposed, kept so the list shows what the rebuilt tunnel has to forward. |
+| `role` | `string` | Role is "iran" or "kharej" ("edge" and "origin" were synonyms). Empty means the file has no [direct] table, which is every file but these. |
+| `transport` | `string` | Transport was tcp, stealth, ws or wss. |
+
 ## PckConfig
 
 | Key | Type | Description |
@@ -50,6 +59,7 @@ them both ends have to agree on. This says what exists.
 |---|---|---|
 | `binary` | `string` | Binary is the absolute path to the official NaiveProxy client binary; sober-tunnel never downloads or replaces it. |
 | `ca_file` | `string` | CAFile optionally trusts a PEM CA for this helper alone; empty uses the official client's normal certificate verification. |
+| `connections` | `int` | Connections is how many HTTP/2 connections the client spreads the tunnel's streams over (NaiveProxy's insecure-concurrency); 0 means DefaultNaiveConnections, 1 a single connection, as one browser tab opens. One connection carried at most ~120 Mbit/s up on a 70 ms path — one HTTP/2 flow-control window per round trip — and four carried four times that; on a lossy path each is its own TCP congestion window, so the gain is the same factor. More connections to one host is also something an observer can count. |
 | `password` | `string` | Password is the HTTP/2 proxy secret; keep the tunnel configuration readable only by its owner. |
 | `server` | `string` | Server is the HTTP/2 proxy's host:port, reached from the outside client toward the Iran server. |
 | `username` | `string` | Username authenticates the HTTP/2 proxy independently of the reverse tunnel token. |
@@ -95,6 +105,7 @@ them both ends have to agree on. This says what exists.
 | `mux_version` | `int` | MuxVersion is the smux protocol version. Negotiated with the peer, so the two ends may differ and the lower wins. |
 | `naive` | `NaiveClientConfig` | Naive optionally reaches the loopback reverse target through a tunnel-owned official Chromium Naive helper; experimental and disabled when empty. |
 | `nodelay` | `bool` | Nodelay disables Nagle's algorithm on the tunnel's sockets. Off unless set; every preset sets it. It trades a little bandwidth for latency, which is what an interactive session wants and a bulk transfer does not notice. |
+| `peer_auth` | `string` | PeerAuth is "required" to refuse a peer on the handshake before v2.0.0 on the plain transports (tcp, tcpmux, ws, wsmux, udp). That handshake sends the token as it is and lets anything on the path pose as the other end. Empty still accepts such a peer, so a tunnel keeps working while its two servers are upgraded one after the other, until the other end has once proved itself the new way; from then on the old handshake is refused anyway (remembered beside this file). Setup Links from v2.0.0 write "required". |
 | `pprof` | `bool` | PPROF exposes Go's profiling endpoint on loopback. Off by default, and loopback-only on purpose: its heap dump contains this tunnel's token. |
 | `preset` | `string` | Preset records which performance profile the tuning values came from — balance, turbo or aggressive. A label: the engine reads the values, never this. |
 | `proxy` | `string` | Proxy routes the connection to the tunnel server through a local or nearby proxy, for a client that cannot open an arbitrary outbound connection itself. One URL: "socks5://127.0.0.1:1080" or "http://user:pass@10.0.0.1:8080". Empty means dial the server directly. |
@@ -115,62 +126,40 @@ them both ends have to agree on. This says what exists.
 | `xray` | `XrayClientConfig` | Xray optionally reaches the loopback reverse target through a restricted tunnel-owned XHTTP/TLS or RAW/REALITY helper. |
 | `zero_copy` | `bool` | ZeroCopy lets the kernel move the bytes of forwarded connections directly between the two sockets, without them passing through this process. It is faster and it is the least proven path here, so it is off by default and turned on per tunnel. |
 
-## [direct]
-
-| Key | Type | Description |
-|---|---|---|
-| `accept_udp` | `bool` | AcceptUDP forwards UDP as well as TCP on those ports. Off unless set, matching the reverse tunnel: a tunnel should not silently start carrying every QUIC flow on port 443. |
-| `acme_domain` | `string` | ACMEDomain switches the kharej side to a Let's Encrypt certificate for that domain instead of a generated one. The domain must resolve to it. |
-| `acme_email` | `string` | ACMEEmail is where Let's Encrypt sends expiry warnings. Optional. |
-| `addr` | `string` | Addr is the kharej server's host:port on the Iran side, or the address to bind on the kharej side. |
-| `bandwidth_mbps` | `int` | BandwidthMbps caps total throughput across this tunnel, in megabits per second. 0 is unlimited. |
-| `dial_timeout` | `int` | DialTimeout bounds a dial, in seconds. Zero takes the default. |
-| `keepalive_period` | `int` | Keepalive is the TCP keepalive period on the tunnel connection, in seconds. |
-| `max_connections` | `int` | MaxConnections caps how many forwarded connections may be open at once (0 = unlimited), and BandwidthMbps caps total throughput in Mbit/s (0 = unlimited). Both are enforced on the Iran side, where the users arrive, and both are off unless set. |
-| `mss` | `int` | MSS clamps the largest TCP payload this end puts in one segment on the tunnel connection. Zero — the default — leaves the decision to the kernel. |
-| `mux_framesize` | `int` | MaxFrameSize caps one smux frame, in bytes. Filled from a preset. |
-| `mux_recievebuffer` | `int` | MaxReceiveBuffer is the per-session receive window, in bytes. Filled from a preset. (The spelling is a typo that shipped; it cannot be corrected without breaking every existing config.) |
-| `mux_streambuffer` | `int` | MaxStreamBuffer is the per-stream receive window, in bytes. Filled from a preset. |
-| `mux_version` | `int` | MuxVersion, MaxFrameSize, MaxReceiveBuffer and MaxStreamBuffer tune the mux session. They are the same keys the reverse mux transports take. |
-| `nodelay` | `bool` | Nodelay disables Nagle on the tunnel connection. |
-| `ports` | `[]string` | Ports are the forwarded port mappings, served on the Iran side, in the same syntax the reverse tunnel uses. A target with no host of its own means the loopback of the kharej machine, where the real service listens. The kharej side needs none: every target arrives on the stream that asks for it. |
-| `preset` | `string` | Preset is the name of the tuning profile the keys below came from. It is a label: the engine reads the individual values, not this. It exists so a management screen can say "Turbo" rather than reciting four numbers. |
-| `retry_interval` | `int` | RetryInterval is how long to wait before redialling a dropped session, in seconds. Zero takes the default. |
-| `role` | `string` | Role is "iran" or "kharej". Empty means there is no direct tunnel in this configuration, which is how every pre-existing config reads. |
-| `server_name` | `string` | ServerName is the name the Iran side presents in SNI and the Host header on ws and wss — the domain in front of a CDN. Empty uses the host of Addr and, on wss, skips certificate verification: the tunnel authenticates on the token rather than the certificate, so a self-signed origin is the expected case. Setting it turns verification on. |
-| `sessions` | `int` | Sessions is how many mux sessions the Iran side keeps open, with new connections spread across them. One is enough for most traffic; more helps where a single connection is being shaped. |
-| `tls_cert` | `string` | TLSCertFile and TLSKeyFile are the kharej side's certificate for wss. Both empty generates a self-signed one, which is what a direct connection to an IP address wants. |
-| `tls_key` | `string` | TLSKeyFile is the private key for tls_cert. |
-| `token` | `string` | Token is the shared secret. It never travels on the wire: each end proves it holds the token with an HMAC over two fresh nonces. |
-| `transport` | `string` | Transport is "tcp" (plain, for a payload that is already TLS), "stealth" (the Noise record layer, with no handshake or fingerprint for inspection to match), or "ws"/"wss" (an HTTP upgrade in front of the stream, which is what a CDN will proxy). Empty means "tcp". |
-
 ## [l3]
 
 | Key | Type | Description |
 |---|---|---|
 | `accept_udp` | `bool` | AcceptUDP forwards UDP as well as TCP on the mapped ports. Off unless set, matching the reverse tunnel's default and for the same reason: a tunnel should not silently start carrying every QUIC flow on port 443. |
-| `addr` | `string` | Addr is the peer's host:port when dialling, or the address to bind when listening. |
+| `addr` | `string` | Addr is the peer's host:port when dialling, or the address to bind when listening. On the kernel GRE carriers it is the other server's real address on both sides, with no port — "203.0.113.9" — because a GRE link names both of its ends and neither of them listens. |
 | `auto_mtu` | `*bool` | AutoMTU measures what the path really carries, once the tunnel is up, and sets the interface to match. |
 | `bandwidth_mbps` | `int` | BandwidthMbps caps total throughput across this tunnel, in megabits per second. 0 is unlimited. |
-| `carrier` | `string` | Carrier is the datagram transport underneath: "udp" (the default, and the right choice on a path that does not interfere), "pck" (raw TCP segments, so a capture sees an ordinary flow), "quic" (a real QUIC session, so a capture sees HTTP/3), "sni" (pck, plus a TLS ClientHello naming an allowed domain at the start of the flow), "xdi" (inside ICMP echo) or "spoof" (raw IP with a forged source). All but udp and quic are Linux-only and need CAP_NET_RAW. |
+| `carrier` | `string` | Carrier is the datagram transport underneath: "pck" (a different engine from the rest — see below), "sni" (pck, plus a TLS ClientHello naming an allowed domain at the start of the flow), "xdi" (inside ICMP echo) or "spoof" (raw IP with a forged source), all four Linux-only and needing CAP_NET_RAW; or "gre" / "ip6gre", kernel GRE over IPv4 or IPv6 endpoints, which is NOT encrypted. |
 | `encap` | `string` | Encap is always GRE now: four bytes, or eight with gre_key. "ipip" is still accepted and read as GRE, so a file written when there was a choice keeps working. One tunnel carries both IPv4 and IPv6. |
 | `fec_data` | `int` | FECData and FECParity add forward error correction to the carrier: for every FECData datagrams, FECParity extra ones are sent, and any FECParity of the group may be lost without losing anything. Both zero — the default — is no error correction. |
 | `fec_parity` | `int` | FECParity is how many parity packets accompany each group. Both ends must agree on this and on fec_data. |
-| `gre_key` | `uint32` | GREKey is the RFC 2890 key, letting more than one logical tunnel share a carrier. Zero omits the field. Ignored unless encap is "gre". |
+| `gre_key` | `uint32` | GREKey is the RFC 2890 key, letting more than one logical tunnel share a carrier. Zero omits the field. On the kernel GRE carriers it is the link's key, which both ends must share; the setup picks one per tunnel. |
+| `gre_local` | `string` | GRELocal is this server's own address for a kernel GRE link. Empty — the default — uses the address the route to addr leaves from, which is right unless the server has several and the other end expects another. Read only when carrier is "gre" or "ip6gre". |
 | `iface` | `string` | Iface is the interface to create. Empty makes "bp0". |
 | `local_ip` | `string` | LocalIP is this end's address on the tunnel, normally with a prefix: "10.10.0.1/30". A bare address requires PeerIP and makes a point-to-point link instead. |
 | `max_connections` | `int` | MaxConnections and BandwidthMbps cap the forwarded ports above (0 = unlimited each). They do not apply to routed traffic: the tunnel carries whatever the kernel puts into the interface, which has no connections to count. |
 | `mode` | `string` | Mode is "dial" or "listen". Empty means there is no layer-3 tunnel in this configuration, which is how every pre-existing config reads. |
 | `mss_clamp` | `int` | MSSClamp caps the TCP segment size of connections crossing the tunnel, which is the fix for the failure a layer-3 tunnel produces most often and advertises least: ping works, pages load, and every large transfer stalls forever, because both endpoints negotiated a segment from their own 1500-byte interfaces and the ICMP message that would have corrected them was dropped somewhere on the way. |
-| `mtu` | `int` | MTU is the interface MTU. Zero takes a deliberately conservative default, because a layer-3 tunnel whose packets are slightly too large does not fail loudly — it passes small flows and stalls large ones. |
-| `paths` | `int` | Paths spreads the udp carrier over this many sockets, on consecutive ports starting at the one in Addr. One (or zero) is a single socket. |
+| `mtu` | `int` | MTU is the interface MTU. Zero takes a deliberately conservative default, because a layer-3 tunnel whose packets are slightly too large does not fail loudly — it passes small flows and stalls large ones. On the kernel GRE carriers zero is worked out from the outgoing interface. |
+| `pck_conns` | `int` | PckConns is how many KCP sessions the Iran side holds open to the kharej side, each its own TCP flow. Zero takes the preset's (Balance 1, Turbo 2, Aggressive 4); at most 16. |
+| `pck_kcp_block` | `string` | PckKCPBlock is the cipher KCP encrypts with, keyed from token. Empty is "aes". Both ends must agree. "aes-128-gcm" adds authentication; "none" and "null" turn encryption off. |
+| `pck_kcp_mode` | `string` | PckKCPMode is KCP's speed mode: "normal", "fast", "fast2" or "fast3", from least CPU to lowest latency. Empty takes the preset's (Balance fast, Turbo fast2, Aggressive fast3). |
+| `pck_kcp_mtu` | `int` | PckKCPMTU is the size of one KCP packet, which is the TCP payload of one segment. Zero takes 1350, which with the headers fits a 1500-byte path. The segments are not fragmented, so a value the path cannot carry is lost without any message, not slow. |
+| `pck_kcp_rcvwnd` | `int` | PckKCPRcvWnd is KCP's receive window in packets; see pck_kcp_sndwnd. Zero takes the preset's. |
+| `pck_kcp_sndwnd` | `int` | PckKCPSndWnd is the ceiling of KCP's send window in packets. The engine moves the window below it by what it reads of the path's delay, so a larger figure does not queue more on a path that is full, but one that is too small is the speed limit: throughput is at most window x mtu / round-trip time. Zero takes the preset's. |
+| `pck_remote_targets` | `bool` | PckRemoteTargets, on the kharej side, lets the tunnel reach machines other than the kharej server itself. Off (the default), a forwarded port reaches only this server's own services — 127.0.0.1 and its own addresses — which is what the previous PCK's TUN device reached too. Turn it on only for a mapping that names another host ("443=10.0.0.5:443"). |
 | `peer_ip` | `string` | PeerIP is the other end's address on the tunnel. |
 | `ports` | `[]string` | Ports are forwarded port mappings served over the tunnel, in the same syntax as the reverse tunnel's: "443", "443=8443", "10000-10009", and "443=10.0.0.1:80\|10.0.0.2:80" for several backends. A target with no host of its own means PeerIP, which is what almost every mapping wants. |
 | `preset` | `string` | Preset is the name of the tuning profile the two keys below came from. It is a label: the engine reads the values, not this. |
 | `qdisc` | `string` | Qdisc is the queueing discipline on the interface, and is the setting that actually decides jitter. Empty takes fq_codel, which drops when packets start waiting instead of letting the queue grow into delay. |
 | `sni_domain` | `string` | SNIDomain is the server name the "sni" carrier puts in that hello. Empty uses the built-in default. It has to be a domain the path already lets through — which one that is depends on the route, so it is the operator's to choose and to test. |
 | `sockbuf` | `int` | SockBuf sizes the carrier's socket buffers in bytes. Zero takes the carrier default of 4 MiB. |
-| `token` | `string` | Token is the shared secret. It is the only credential: the handshake derives its pre-shared key from it, and a peer without it is answered with silence. |
+| `token` | `string` | Token is the shared secret. It is the only credential: the handshake derives its pre-shared key from it, and a peer without it is answered with silence. The kernel GRE carriers have no handshake and no secret, and need none. |
 | `txqueuelen` | `int` | TxQueueLen is how many packets the kernel may hold for the interface while the tunnel drains it. Deeper is not better — a queue is latency, and a full one is the jitter. Zero takes the default. |
 
 ## [l3] — the spoof carrier
@@ -252,6 +241,7 @@ them both ends have to agree on. This says what exists.
 | `mux_version` | `int` | MuxVersion is the smux protocol version. Negotiated with the peer, so the two ends may differ and the lower wins. |
 | `naive` | `NaiveServerConfig` | Naive optionally wraps the loopback TCP reverse listener in HTTP/2 with a tunnel-owned sing-box helper; experimental and disabled when empty. |
 | `nodelay` | `bool` | Nodelay disables Nagle's algorithm on the tunnel's sockets. Off unless set; every preset sets it. It trades a little bandwidth for latency, which is what an interactive session wants and what a bulk transfer does not notice. |
+| `peer_auth` | `string` | PeerAuth is "required" to refuse a peer on the handshake before v2.0.0 on the plain transports (tcp, tcpmux, ws, wsmux, udp). That handshake sends the token as it is and lets anything on the path pose as the other end. Empty still accepts such a peer, so a tunnel keeps working while its two servers are upgraded one after the other, until the other end has once proved itself the new way; from then on the old handshake is refused anyway (remembered beside this file). Setup Links from v2.0.0 write "required". |
 | `ports` | `[]string` | Ports are the forwarded ports this server exposes, as "443", "8080=127.0.0.1:80", "443-450" or "10.0.0.5:443". See docs/port-mappings.md for every form. |
 | `pprof` | `bool` | PPROF exposes Go's profiling endpoint on 127.0.0.1:6060. Off by default and loopback-only: its heap dump contains this tunnel's token. |
 | `preset` | `string` | Preset records which performance profile the tuning values came from — balance, turbo or aggressive. A label: the engine reads the values, never this. Set by hand only if you want the menu to stop offering to change them. |

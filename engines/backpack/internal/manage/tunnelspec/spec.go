@@ -490,10 +490,10 @@ func (s Spec) Save() (string, error) {
 	if err := s.validateHelpers(); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(app.ConfigDir, 0755); err != nil {
+	if err := os.MkdirAll(configRoot, 0755); err != nil {
 		return "", err
 	}
-	if err := app.WriteFileAtomic(app.ConfigPath(s.Name), []byte(s.Render()), app.TunnelConfigMode); err != nil {
+	if err := app.WriteFileAtomic(configPath(s.Name), []byte(s.Render()), app.TunnelConfigMode); err != nil {
 		return "", err
 	}
 	if err := core.WriteUnit(s.Name); err != nil {

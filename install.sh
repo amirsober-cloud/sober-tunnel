@@ -96,6 +96,11 @@ PY
   tar -xzf "$work/$archive" -C "$toolchain"
   export PATH="$toolchain/go/bin:$PATH"
 fi
+if ! command -v gcc >/dev/null || ! command -v make >/dev/null || ! command -v flex >/dev/null || ! command -v bison >/dev/null; then
+  command -v apt-get >/dev/null || { echo "Source builds require a C compiler, make, flex and bison" >&2; exit 1; }
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential flex bison
+fi
 export GOTOOLCHAIN=local
 bash "$root/scripts/build.sh"
 bash "$root/scripts/install.sh"

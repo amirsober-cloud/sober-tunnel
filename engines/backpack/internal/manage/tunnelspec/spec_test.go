@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/backpack/backpack/config"
-	"github.com/backpack/backpack/internal/app"
+
 	"github.com/backpack/backpack/internal/tunnel/naive"
 	"strings"
 	"testing"
@@ -58,10 +58,11 @@ func TestNaiveLoadEditRoundTrip(t *testing.T) {
 			if err := s.validateNaive(); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.MkdirAll(app.ConfigDir, 0755); err != nil {
+			root := useSpecRoot(t)
+			if err := os.MkdirAll(root, 0755); err != nil {
 				t.Fatal(err)
 			}
-			file, err := os.CreateTemp(app.ConfigDir, "naive-edit-*.toml")
+			file, err := os.CreateTemp(root, "naive-edit-*.toml")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -118,10 +119,11 @@ func TestNaiveLoadEditRoundTrip(t *testing.T) {
 // tunnel config or invokes systemd. Both role-specific validators are exercised.
 func TestNaiveIncompatibleEditPreservesExistingConfig(t *testing.T) {
 	binary, certificate, key := naiveSpecFiles(t)
-	if err := os.MkdirAll(app.ConfigDir, 0755); err != nil {
+	root := useSpecRoot(t)
+	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatal(err)
 	}
-	file, err := os.CreateTemp(app.ConfigDir, "naive-invalid-edit-*.toml")
+	file, err := os.CreateTemp(root, "naive-invalid-edit-*.toml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +194,8 @@ func TestXrayLoadEditPreservesSettingsAndRejectsBypass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(app.ConfigDir, 0755); err != nil {
+	root := useSpecRoot(t)
+	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatal(err)
 	}
 	for _, mode := range []string{"xhttp", "reality"} {
@@ -219,7 +222,7 @@ func TestXrayLoadEditPreservesSettingsAndRejectsBypass(t *testing.T) {
 				if err := s.validateXray(); err != nil {
 					t.Fatal(err)
 				}
-				file, err := os.CreateTemp(app.ConfigDir, "xray-edit-*.toml")
+				file, err := os.CreateTemp(root, "xray-edit-*.toml")
 				if err != nil {
 					t.Fatal(err)
 				}

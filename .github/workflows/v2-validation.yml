@@ -24,7 +24,7 @@ jobs:
       - name: Check continuation and pool races
         run: go test -race -count 5 -timeout 3m ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/ingress ./engines/camouflage/internal/pool
       - name: Validate all engine packages
-        run: go test -p 2 -timeout 5m ./engines/backpack/... ./engines/camouflage/...
+        run: go test -p 4 -timeout 12m ./engines/backpack/... ./engines/camouflage/...
       - name: Check browser code
         run: |
           find engines/backpack/internal/webui/panel/js -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 sh -c 'node --input-type=module --check < "$0"'

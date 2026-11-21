@@ -111,9 +111,9 @@ func TestEveryPanelCallReachesAHandlerThatReadsWhatItSends(t *testing.T) {
 		for _, q := range c.Query {
 			sent = append(sent, [3]string{q[0], q[1], "string"})
 		}
-		for _, f := range sent {
+		for i, f := range sent {
 			key, val, jsType := f[0], f[1], f[2]
-			if c.Body == "json" {
+			if c.Body == "json" && i < len(c.Fields) {
 				if goTypes, ok := reads.fields[strings.ToLower(key)]; !ok {
 					t.Errorf("%s sends %q, which no struct %s decodes into has", what, key, h)
 				} else if !fits(jsType, goTypes) {

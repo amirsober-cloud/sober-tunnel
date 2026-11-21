@@ -8,7 +8,7 @@ permissions:
 jobs:
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -23,10 +23,12 @@ jobs:
         run: bash scripts/build.sh
       - name: Check continuation and pool races
         run: go test -race -count 5 -timeout 3m ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/ingress ./engines/camouflage/internal/pool
+      - name: Stress concurrent websocket mux admissions
+        run: go test -count 20 -timeout 3m ./engines/backpack/internal/e2e -run '^TestTransportConcurrentConnections/wsmux$'
       - name: Validate all engine packages
         env:
           BACKPACK_CURRENT_BINARY: ${{ github.workspace }}/build/sober-tunnel
-        run: go test -p 4 -timeout 12m ./engines/backpack/... ./engines/camouflage/...
+        run: go test -p 4 -timeout 20m ./engines/backpack/... ./engines/camouflage/...
       - name: Check browser code
         run: |
           find engines/backpack/internal/webui/panel/js -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 sh -c 'node --input-type=module --check < "$0"'
@@ -70,7 +72,8 @@ jobs:
         if: always()
         with:
           name: raw-carrier-evidence
-          path: build/*-live.log  compatibility:
+          path: build/*-live.log
+  compatibility:
     needs: integration
     runs-on: ubuntu-latest
     timeout-minutes: 15

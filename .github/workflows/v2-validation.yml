@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  integration:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -21,6 +21,32 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libpcap-dev flex bison
       - name: Build combined distribution
         run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-binaries
+          path: |
+            build/sober-tunnel
+            build/sober-tunnel-mimic
+  integration:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            go.work.sum
+            engines/backpack/go.sum
+            engines/camouflage/go.sum
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-binaries
+          path: build
+      - run: |
+          sudo apt-get update && sudo apt-get install -y libpcap-dev
+          chmod +x build/sober-tunnel build/sober-tunnel-mimic
       - name: Check continuation and pool races
         run: go test -race -count 5 -timeout 3m ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/ingress ./engines/camouflage/internal/pool
       - name: Stress concurrent websocket mux admissions
@@ -33,15 +59,8 @@ jobs:
         run: |
           find engines/backpack/internal/webui/panel/js -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 sh -c 'node --input-type=module --check < "$0"'
           node engines/backpack/internal/webui/paneltest/mimic-form.test.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: integration-binaries
-          path: |
-            build/sober-tunnel
-            build/sober-tunnel-mimic
   raw-carriers:
-    needs: integration
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -74,7 +93,7 @@ jobs:
           name: raw-carrier-evidence
           path: build/*-live.log
   compatibility:
-    needs: integration
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

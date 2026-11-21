@@ -2,13 +2,13 @@ name: Build and validate release
 
 on:
   push:
-    tags: ["v0.4.0"]
+    tags: ["v0.4.1"]
   workflow_dispatch:
     inputs:
       version:
         description: Existing draft release tag
         required: true
-        default: v0.4.0
+        default: v0.4.1
         type: string
 
       validation_run:
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ github.event_name }}" == push ]]; then
-            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "SoberLinkPack v2 data plane, mutual peer authentication and opt-in Camouflage TCP continuation."
+            gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "$RELEASE_VERSION" --notes "Camouflage equal-load scheduling and nonblocking stream admission."
             echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
             exit 0
           fi

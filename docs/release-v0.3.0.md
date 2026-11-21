@@ -21,9 +21,13 @@ Regression coverage: blocked-primary fallback latency, loser cancellation,
 empty/cancelled races, post-handshake blackholes, recovery hysteresis, oversized
 write accounting and cancellation. Both Linux executables build; CI runs ingress
 and pool race tests as well as the release's existing checks and signature test.
-A real-route candidate test was not completed: direct upload was stopped due to
-low transfer speed and its partial /run file removed. Production configuration
-was not changed. The SSH-only route selected earlier is not expanded by updating.
+Real-route smoke check: the published v0.3.2 bundle was downloaded on Iran and
+checked against GitHub's SHA256 archive digest. The native binary ran from an
+isolated temporary directory with SOCKS port 18089, TUN/DNS/gateway disabled.
+All six HTTPS requests through the existing SSH endpoint returned HTTP 200,
+taking 0.140–0.175 seconds. The temporary process and files were cleaned up.
+Production services/configuration were not changed. This is a smoke check, not
+a sustained load benchmark. The SSH-only route is not expanded by updating.
 
 Not included: upstream BackPack v2/PCK migration, new cryptographic handshakes,
 stream resumption, automatic MTU changes or restored mixed endpoints. These need

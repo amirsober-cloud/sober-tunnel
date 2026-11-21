@@ -118,3 +118,22 @@ jobs:
           BACKPACK_CURRENT_BINARY: ${{ github.workspace }}/build/sober-tunnel
           BACKPACK_PREV_BINARY: ${{ github.workspace }}/build/previous/sober-tunnel
         run: go test -v -timeout 10m ./engines/backpack/internal/e2e -run 'Test(ThePreviousReleaseStillTalksToThisOne|AProvedTunnelRefusesTheOlderHandshake)$'
+  native-browser:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-binaries
+          path: build
+      - name: Exercise panel and independent cores in disposable Chromium container
+        run: |
+          docker run --rm --mount type=bind,src="$PWD",dst=/work,readonly node:22-bookworm bash -c '
+            set -euo pipefail
+            apt-get update -qq
+            apt-get install -y -qq python3 chromium curl ca-certificates
+            install -m755 /work/build/sober-tunnel /work/build/sober-tunnel-mimic /usr/local/bin/
+            SOBER_BROWSER_CHECK=1 python3 /work/scripts/check-native-panel.py
+          '

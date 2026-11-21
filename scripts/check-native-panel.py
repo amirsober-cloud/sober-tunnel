@@ -50,7 +50,7 @@ def systemctl():
         name = unit[len("sober-mimic-"):-len(".service")]
         with (state / (unit + ".log")).open("ab") as output:
             process = subprocess.Popen(
-                ["/usr/local/bin/sober-tunnel", "--mimic-config",
+                ["/usr/local/bin/sober-tunnel-mimic", "--foreground", "--config",
                  "/etc/sober-tunnel/mimic/" + name + ".json"],
                 stdin=subprocess.DEVNULL, stdout=output, stderr=output,
                 start_new_session=True)

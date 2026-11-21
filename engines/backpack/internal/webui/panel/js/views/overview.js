@@ -302,6 +302,7 @@ export function overview(ctx) {
   const view = $('#view');
   let fleet = null;
   let backup = null;
+  const show = null; // This distribution does not display the upstream showcase.
   let camPrevious=null, camSamples=[];
   let counted = false;   // the total has had its one run
 
@@ -459,10 +460,6 @@ export function overview(ctx) {
      is unrecoverable, and it is silent while it is fine — a row that appears
      only when something is wrong is a row people believe. */
   api.autoBackup().then(b => { backup = b; paint(); }).catch(() => {});
-
-  /* The showcase is read once per visit. Asking is also what tells the server
-     its cached copy may be stale, so the next visit has the newer one. */
-  api.showcase().then(sc => { show = sc; paint(); }).catch(() => {});
 
   /* The month of traffic is one request per tunnel, so it waits for the first
      tunnel list rather than asking once and giving up. */

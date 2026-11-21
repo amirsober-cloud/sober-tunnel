@@ -117,7 +117,7 @@ def main():
         api({"action": "save", "name": "test-exit", "config": exit_preview["config"]})
         pairing = api({"action": "prepare", "name": "test-exit", "command": "pairing",
                        "flags": {"public-ip": "127.0.0.1"}})["output"].strip()
-        hub_flags = {"alias": "exit", "socks-port": "11081", "token": pairing}
+        hub_flags = {"alias": "exit", "socks-port": "11081", "token": pairing, "resume": "true"}
         if os.environ.get("SOBER_TEST_TUN") == "1":
             hub_flags.update({"tun": "true", "dns": "true", "tun-name": "sobertest0", "tun-addr": "10.200.20.1/24"})
         hub_preview = api({"action": "prepare", "name": "test-hub", "command": "setup-iran", "flags": hub_flags})

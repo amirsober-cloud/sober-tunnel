@@ -74,7 +74,7 @@ jobs:
           node --input-type=module --check < engines/backpack/internal/webui/panel/js/views/overview.js
           node --input-type=module --check < engines/backpack/internal/webui/panel/js/views/mimic-tools.js
           go test -race -timeout 3m ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/pool ./engines/camouflage/internal/ingress ./engines/camouflage/tooling ./engines/backpack/internal/mimicmgr
-          go test -timeout 3m ./engines/backpack/internal/webui -run 'Test(LegacyAutomaticTLSUsesHTTPWithoutCertificate|ConfiguredACMEKeepsHTTPS|HTTPLoginSurvivesLegacySecureCookie|HTTPAndHTTPSUseDifferentCookieNames)$'
+          go test -timeout 3m ./engines/backpack/internal/webui
           go test -timeout 3m ./...
           go test -timeout 3m ./engines/backpack/internal/app ./engines/backpack/internal/cli
           go vet ./...

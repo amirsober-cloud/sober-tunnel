@@ -48,6 +48,7 @@ try {
   await until("document.querySelector('#pw')");
   await evaluate(`document.querySelector('#pw').value=${JSON.stringify(cfg.password)};document.querySelector('form').requestSubmit();true`);
   await until("document.querySelector('#panel') && !document.querySelector('#panel').hidden");
+  await until("document.querySelector('#ovCamRate')?.textContent.includes('Camouflage cores running')");
   await evaluate("location.hash='/tunnels';true");
   await until("document.querySelector('#mimic-fleet .sb')");
   await evaluate("document.querySelector('[data-act=add]').click();true");

@@ -14,7 +14,7 @@ on:
       validation_run:
         description: Successful v2 validation run for the same engine source
         required: true
-        default: '44903531320'
+        default: '44920800805'
         type: string
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
-      VALIDATION_RUN: ${{ inputs.validation_run || '44903531320' }}
+      VALIDATION_RUN: ${{ inputs.validation_run || '44920800805' }}
     steps:
       - name: Resolve draft release source
         id: source
@@ -73,6 +73,9 @@ jobs:
 
       - name: Install static capture build tools
         run: sudo apt-get update && sudo apt-get install -y build-essential flex bison libpcap-dev
+
+      - name: Check installer and build script syntax
+        run: bash -n install.sh scripts/build.sh scripts/package.sh
 
       - name: Build both Linux executables and archive
         run: bash scripts/package.sh

@@ -20,8 +20,9 @@ const (
 
 // YamuxSession wraps the HashiCorp Yamux multiplexer with our Chaos Balancing metadata.
 type YamuxSession struct {
-	session *yamux.Session
-	state   int32 // Atomic state: Active vs Draining
+	session      *yamux.Session
+	state        int32        // Atomic state: Active vs Draining
+	pendingOpens atomic.Int32 // selected admissions not yet returned by OpenStream
 
 	// Atomic counters for real-time bandwidth calculation (Bytes). bytesTransferred
 	// is reset every health interval for the Mbps gauge; cumulativeBytes is never
@@ -245,7 +246,7 @@ func (ys *YamuxSession) ActiveStreams() int {
 	if ys.session == nil || ys.session.IsClosed() {
 		return 0
 	}
-	return ys.session.NumStreams()
+	return ys.session.NumStreams() + int(ys.pendingOpens.Load())
 }
 
 func (ys *YamuxSession) IsClosed() bool {

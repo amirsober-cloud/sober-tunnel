@@ -72,6 +72,7 @@ type NodePool struct {
 	dialer         DialFunc
 	lifecycle      LifecyclePolicy
 	sessions       []*YamuxSession
+	nextSession    int // rotates equal-load choices; guarded by mu
 	mu             sync.RWMutex
 	currentMbps    int32 // Atomic total bandwidth of this pool for dashboard monitoring
 	shutdown       chan struct{}
@@ -184,29 +185,32 @@ func (hm *HubManager) lookup(nodeAlias string) (*nodePools, error) {
 
 // getStreamLeastLoaded routes the new logical stream to the active physical connection handling the fewest streams.
 func (np *NodePool) getStreamLeastLoaded() (net.Conn, error) {
-	np.mu.RLock()
-	defer np.mu.RUnlock()
-
+	np.mu.Lock()
 	var bestSession *YamuxSession
-	minStreams := int(^uint(0) >> 1) // Max Int value
-
-	for _, s := range np.sessions {
-		// Do not route new traffic to dead or draining connections
+	bestIndex := -1
+	minStreams := int(^uint(0) >> 1)
+	count := len(np.sessions)
+	for offset := 0; offset < count; offset++ {
+		index := (np.nextSession + offset) % count
+		s := np.sessions[index]
 		if s.IsClosed() || s.IsDraining() {
 			continue
 		}
-
-		activeStreams := s.ActiveStreams()
-		if activeStreams < minStreams {
-			minStreams = activeStreams
-			bestSession = s
+		if active := s.ActiveStreams(); active < minStreams {
+			minStreams, bestSession, bestIndex = active, s, index
 		}
 	}
-
 	if bestSession == nil {
+		np.mu.Unlock()
 		return nil, errors.New("no active connections available in the pool")
 	}
-
+	np.nextSession = (bestIndex + 1) % count
+	// Reserve admission while choosing: concurrent requests must see it, and
+	// maintenance must not close this connection as empty before OpenStream.
+	bestSession.pendingOpens.Add(1)
+	np.mu.Unlock()
+	defer bestSession.pendingOpens.Add(-1)
+	// A slow/dead transport must never hold the pool lock while opening a stream.
 	return bestSession.OpenStream()
 }
 

@@ -1,0 +1,28 @@
+name: Check Camouflage pool scheduling
+on:
+  push:
+    branches: [work/cam-pool-latency, main]
+    paths:
+      - 'engines/camouflage/**'
+      - '.github/workflows/camouflage-pool.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  camouflage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            go.work.sum
+            engines/camouflage/go.sum
+      - name: Check concurrent pool admission and stream recovery
+        run: go test -race -count 3 -timeout 3m ./engines/camouflage/internal/pool ./engines/camouflage/internal/ingress ./engines/camouflage/internal/resumestream ./engines/camouflage/internal/egress
+      - name: Check complete native core
+        run: |
+          go test -timeout 3m ./engines/camouflage/...
+          go vet ./engines/camouflage/...

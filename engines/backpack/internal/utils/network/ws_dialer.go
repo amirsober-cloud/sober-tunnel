@@ -228,6 +228,9 @@ func attemptDialWebSocket(ctx context.Context, out *Outbound, addr string, edgeI
 					return nil, err
 				}
 				own(conn)
+				if mode == config.WSMUX || mode == config.WSSMUX {
+					return newUpgradeBoundaryConn(conn), nil
+				}
 				return conn, nil
 			},
 		}
@@ -305,6 +308,9 @@ func attemptDialWebSocket(ctx context.Context, out *Outbound, addr string, edgeI
 			WriteBufferSize: wsWriteBufferSize,
 			WriteBufferPool: wsWriteBuffers,
 			NetDialTLSContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				if mode == config.WSMUX || mode == config.WSSMUX {
+					return newUpgradeBoundaryConn(uconn), nil
+				}
 				return uconn, nil
 			},
 		}

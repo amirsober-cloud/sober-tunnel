@@ -16,6 +16,7 @@ import (
 
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/mimic"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/resumestream"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/securestream"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/sysutil"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/tlscert"
@@ -127,7 +128,7 @@ func startMimicListener(cfg *config.AppConfig, ml config.MimicListener, filter *
 		if err != nil {
 			continue
 		}
-		go handleIncomingConnection(conn, m, ml.Type)
+		go handleIncomingConnectionScoped(conn, m, ml.Type, resumeRegistry(cfg.AuthToken))
 	}
 }
 
@@ -289,6 +290,9 @@ func (m *decoyBannerMirror) refreshLoop(addr string) {
 // used for logging so implicit-TLS variants are distinguished from plain tls,
 // which share the same underlying mimic and Name().
 func handleIncomingConnection(conn net.Conn, m mimic.ServerMimic, label string) {
+	handleIncomingConnectionScoped(conn, m, label, nil)
+}
+func handleIncomingConnectionScoped(conn net.Conn, m mimic.ServerMimic, label string, registry *resumestream.Registry) {
 	clientIP, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 
 	// 1. Camouflage + authenticate. On failure we receive a replay conn carrying
@@ -320,11 +324,12 @@ func handleIncomingConnection(conn net.Conn, m mimic.ServerMimic, label string) 
 	slog.Info("authentic hub connection established", "client_ip", clientIP, "mimic", label)
 
 	// 3. Accept logical streams from the Hub and route them to the open internet
-	go handleYamuxSession(session)
+	go handleYamuxSessionScoped(session, registry)
 }
 
 // handleYamuxSession accepts individual user streams multiplexed over the single physical link.
-func handleYamuxSession(session *yamux.Session) {
+func handleYamuxSession(session *yamux.Session) { handleYamuxSessionScoped(session, nil) }
+func handleYamuxSessionScoped(session *yamux.Session, registry *resumestream.Registry) {
 	for {
 		stream, err := session.AcceptStream()
 		if err != nil {
@@ -333,20 +338,31 @@ func handleYamuxSession(session *yamux.Session) {
 			return
 		}
 
-		go handleLogicalStream(stream)
+		go handleLogicalStreamScoped(stream, registry)
 	}
 }
 
 // handleLogicalStream dispatches a logical stream on its leading type byte:
 // TCP CONNECT is piped to the internet; UDP ASSOCIATE is relayed as datagrams.
-func handleLogicalStream(stream net.Conn) {
-	defer stream.Close()
+func handleLogicalStream(stream net.Conn) { handleLogicalStreamScoped(stream, nil) }
+func handleLogicalStreamScoped(stream net.Conn, registry *resumestream.Registry) {
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			stream.Close()
+		}
+	}()
 
 	streamType, err := tunproto.ReadStreamType(stream)
 	if err != nil {
 		return
 	}
 	switch streamType {
+	case resumestream.Type:
+		if registry != nil {
+			handedOff = registry.Accept(stream, handleLogicalStream) == nil
+		}
+		return
 	case tunproto.StreamTCP:
 		handleTCPStream(stream)
 	case tunproto.StreamUDP:
@@ -376,6 +392,10 @@ func handleTCPStream(stream net.Conn) {
 	}
 	defer remoteConn.Close()
 
+	if _, ok := stream.(*resumestream.Conn); ok {
+		resumestream.Relay(remoteConn, stream)
+		return
+	}
 	// 4. Pipe traffic bidirectionally
 	errChan := make(chan error, 2)
 	go func() {

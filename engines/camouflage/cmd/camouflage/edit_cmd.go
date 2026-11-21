@@ -325,6 +325,7 @@ func cmdEditNode(args []string) {
 	daPort := fs.Int("directadmin-port", ports["directadmin"], "foreign DirectAdmin mimic port")
 	tlsServerName := fs.String("tls-servername", firstEndpointSNI(*node), "TLS SNI (the foreign's domain, for a real cert)")
 	socksPort := fs.Int("socks-port", node.LocalSocksPort, "local SOCKS5 bind port")
+	resume := fs.Bool("resume", node.Resume, "preserve TCP streams across a failed lane; requires an upgraded foreign core")
 	socksBind := fs.String("socks-bind", node.SocksBind, "SOCKS5 bind address (container veth IP / 0.0.0.0 for LAN clients; trusted networks only)")
 	minC := fs.Int("min", node.MinConnections, "min warm-up connections")
 	maxC := fs.Int("max", node.MaxConnections, "max connections")
@@ -403,6 +404,7 @@ func cmdEditNode(args []string) {
 	}
 
 	cfg.UpdateForeignNode(config.ForeignNode{
+		Resume:              *resume,
 		Alias:               alias,
 		LocalSocksPort:      *socksPort,
 		SocksBind:           *socksBind,

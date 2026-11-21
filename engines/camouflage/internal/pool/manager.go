@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/resumestream"
 	"github.com/hashicorp/yamux"
 )
 
@@ -88,8 +89,9 @@ const (
 // same egress over the identical masked TCP transport; they differ only in which
 // logical streams (TCP CONNECT vs UDP ASSOCIATE) ride them.
 type nodePools struct {
-	tcp *NodePool
-	udp *NodePool
+	resume bool
+	tcp    *NodePool
+	udp    *NodePool
 }
 
 // HubManager oversees all active foreign node pools in the Iran Hub.
@@ -143,8 +145,9 @@ func (hm *HubManager) RegisterNode(cfg config.ForeignNode, dialer DialFunc) {
 	lifecycle := NewLifecyclePolicy(cfg.AuthToken)
 
 	hm.pools[cfg.Alias] = &nodePools{
-		tcp: newNodePool(cfg, "tcp", minConns, maxConns, dialer, lifecycle),
-		udp: newNodePool(cfg, "udp", udpMinConns, udpMaxConns, dialer, lifecycle),
+		resume: cfg.Resume,
+		tcp:    newNodePool(cfg, "tcp", minConns, maxConns, dialer, lifecycle),
+		udp:    newNodePool(cfg, "udp", udpMinConns, udpMaxConns, dialer, lifecycle),
 	}
 }
 
@@ -153,6 +156,9 @@ func (hm *HubManager) GetStreamTCP(nodeAlias string) (net.Conn, error) {
 	np, err := hm.lookup(nodeAlias)
 	if err != nil {
 		return nil, err
+	}
+	if np.resume {
+		return resumestream.Dial(np.tcp.getStreamLeastLoaded)
 	}
 	return np.tcp.getStreamLeastLoaded()
 }

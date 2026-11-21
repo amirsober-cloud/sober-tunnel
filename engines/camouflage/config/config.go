@@ -74,6 +74,7 @@ type Endpoint struct {
 
 // ForeignNode defines the connection parameters for upstream egress servers
 type ForeignNode struct {
+	Resume         bool   `json:"resume,omitempty"` // ordered TCP streams survive a lost physical lane (both peers must support v1)
 	Alias          string `json:"alias"`
 	TargetIP       string `json:"target_ip"`
 	TargetPort     int    `json:"target_port"`

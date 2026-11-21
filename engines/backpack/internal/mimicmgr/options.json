@@ -271,6 +271,12 @@
                           "type":  "string",
                           "default":  "",
                           "help":  ","
+                      },
+                      {
+                          "name":  "resume",
+                          "type":  "bool",
+                          "default":  "false",
+                          "help":  "Preserve TCP streams across lane failure (both servers need the updated core; does not survive a process restart)"
                       }
                   ],
     "pairing":  [
@@ -681,6 +687,12 @@
                          "type":  "string",
                          "default":  "",
                          "help":  "optional comma-list of LAN subnets to scope forwarding (default: all transit)"
+                     },
+                     {
+                         "name":  "resume",
+                         "type":  "bool",
+                         "default":  "false",
+                         "help":  "Preserve TCP streams across lane failure (both servers need the updated core; does not survive a process restart)"
                      }
                  ],
     "remove-node":  [
@@ -947,6 +959,12 @@
                            "type":  "string",
                            "default":  "",
                            "help":  "optional comma-list of LAN subnets to scope forwarding (default: all transit)"
+                       },
+                       {
+                           "name":  "resume",
+                           "type":  "bool",
+                           "default":  "false",
+                           "help":  "Preserve TCP streams across lane failure (both servers need the updated core; does not survive a process restart)"
                        }
                    ],
     "check-ip":  [

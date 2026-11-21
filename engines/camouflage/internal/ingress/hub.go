@@ -9,6 +9,7 @@ import (
 
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/pool"
+	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/resumestream"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/sysutil"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/tundev"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/tunproto"
@@ -166,6 +167,10 @@ func handleTCPConnect(localConn net.Conn, targetDest, nodeAlias string, hubManag
 		return
 	}
 
+	if _, ok := stream.(*resumestream.Conn); ok {
+		resumestream.Relay(localConn, stream)
+		return
+	}
 	// Full-duplex pipe between the local X-UI connection and the Yamux stream.
 	errChan := make(chan error, 2)
 	go func() {

@@ -27,10 +27,14 @@ case "$install_mode" in
       aarch64|arm64) arch=arm64 ;;
       *) echo 'Release installation supports amd64 and arm64.' >&2; exit 1 ;;
     esac
-    version="${SOBER_VERSION:-v0.4.1}"
-    [[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || { echo 'Invalid SOBER_VERSION.' >&2; exit 1; }
+    version="${SOBER_VERSION:-latest}"
+    [[ $version == latest || $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || { echo 'Invalid SOBER_VERSION.' >&2; exit 1; }
     archive="sober-tunnel_linux_${arch}.tar.gz"
-    base="https://github.com/amirsober-cloud/sober-tunnel/releases/download/$version"
+    if [[ $version == latest ]]; then
+      base="https://github.com/amirsober-cloud/sober-tunnel/releases/latest/download"
+    else
+      base="https://github.com/amirsober-cloud/sober-tunnel/releases/download/$version"
+    fi
     echo "Downloading sober-tunnel $version for linux/$arch..."
     if ! curl --fail --silent --show-error --location --retry 3 "$base/$archive" -o "$work/$archive"; then
       echo "Release asset unavailable: $base/$archive" >&2

@@ -25,7 +25,7 @@ const (
 
 const (
 	// protoMagic and protoVersion open every message. paqet's own version is
-	// 0x01; this is Backpack's variant (hello, status replies, framed UDP) and
+	// 0x01; this is SoberLinkPack's variant (hello, status replies, framed UDP) and
 	// is not wire compatible with it.
 	protoMagic   byte = 0x50
 	protoVersion byte = 0x02
@@ -113,7 +113,7 @@ type proto struct {
 var (
 	errBadMagic = errors.New("paqet: bad magic byte")
 	// errStockPaqet is what a request in paqet's own framing is answered with.
-	errStockPaqet = errors.New("paqet: the other end speaks stock paqet framing, not Backpack's")
+	errStockPaqet = errors.New("paqet: the other end speaks stock paqet framing, not SoberLinkPack's")
 )
 
 func (p *proto) write(w io.Writer) error {

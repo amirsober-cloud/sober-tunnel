@@ -52,7 +52,7 @@ const (
 	showcaseMaxManifest = 16 << 10
 	// showcaseMaxImage bounds the image. A long animated GIF runs to several
 	// megabytes; anything past this is a mistake on the publishing side, and
-	// every server running Backpack would download it.
+	// every server running SoberLinkPack would download it.
 	showcaseMaxImage = 15 << 20
 	// showcaseMaxAge is how old the cached copy may be before a page view
 	// starts a refresh.
@@ -271,7 +271,7 @@ func showcaseGet(c *http.Client, u string, hdr http.Header, max int64) ([]byte, 
 	for k, v := range hdr {
 		req.Header[k] = v
 	}
-	req.Header.Set("User-Agent", "Backpack/"+app.Version)
+	req.Header.Set("User-Agent", "SoberLinkPack/"+app.Version)
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, 0, nil, err

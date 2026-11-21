@@ -3,7 +3,7 @@ package paqet
 // The client/server split, the stream protocol handling and the dial/accept
 // loops are derived from paqet's internal/client, internal/server and
 // internal/forward (MIT); see doc.go. Changed: a supervised slot per KCP
-// session, a hello on each, status replies, framed UDP, Backpack's logging, and
+// session, a hello on each, status replies, framed UDP, SoberLinkPack's logging, and
 // liveness for the watchdog.
 
 import (
@@ -340,7 +340,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	if !ws.lease.GuardInstalled() {
 		e.log.Warnf("pck: the firewall rules that keep this host's kernel out of the tunnel's flow are not " +
-			"in place (iptables is missing, or Backpack is not allowed to change it). The kernel will answer " +
+			"in place (iptables is missing, or SoberLinkPack is not allowed to change it). The kernel will answer " +
 			"the tunnel's segments with RSTs, and a firewall in between may then drop the flow.")
 	}
 
@@ -447,7 +447,7 @@ func (e *Engine) noteForeign(src net.Addr) {
 		return
 	}
 	e.log.Errorf("pck: %s is still running the previous PCK (a raw datagram handshake arrived). "+
-		"PCK was replaced in this version of Backpack and the two wires cannot talk to each other. "+
+		"PCK was replaced in this version of SoberLinkPack and the two wires cannot talk to each other. "+
 		"Update the other server to the same version (sudo backpack → Update) and the tunnel will come up.", src)
 }
 
@@ -468,7 +468,7 @@ func (g *generation) slot(idx int) {
 			if e.warnPeer.ok() {
 				e.log.Warnf("pck: no answer from %s (attempt %d): %v. Check that the other server is running "+
 					"this tunnel with the same token and port, that its firewall lets TCP port %d in, and that "+
-					"it runs this version of Backpack — the PCK wire changed in v2.0.0 and an older release "+
+					"it runs this version of SoberLinkPack — the PCK wire changed in v2.0.0 and an older release "+
 					"cannot answer it.", e.peer.Load(), attempts, err, e.peer.Load().Port)
 			}
 			select {
@@ -851,7 +851,7 @@ func (g *generation) serveStream(s *session, st *smux.Stream) {
 	case pTCP, pUDP:
 		// A session that has not said which engine revision it speaks does
 		// not get a target dialled: the client never asks before its hello is
-		// answered, so a request without one is not a Backpack client of this
+		// answered, so a request without one is not a SoberLinkPack client of this
 		// version.
 		if !s.helloed.Load() {
 			st.Write([]byte{statusRefused})

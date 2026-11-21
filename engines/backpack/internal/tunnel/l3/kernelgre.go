@@ -180,7 +180,7 @@ func explainGREAddFailure(s greLinkSpec, out string, err error) error {
 		}
 		return fmt.Errorf("l3: another GRE link already joins %s and %s with %s, and the kernel "+
 			"allows one per pair and key. Each GRE tunnel between the same two servers needs a key "+
-			"of its own — Backpack picks one for every tunnel it sets up; see `ip -d link show type %s`",
+			"of its own — SoberLinkPack picks one for every tunnel it sets up; see `ip -d link show type %s`",
 			s.Local, s.Remote, key, s.Carrier)
 	case strings.Contains(lower, "operation not permitted"):
 		return fmt.Errorf("l3: %s: %s (a GRE tunnel needs root or CAP_NET_ADMIN)", cmd, strings.TrimSpace(out))
@@ -223,7 +223,7 @@ func (c *Config) validateGREEndpoints() error {
 	}
 	if c.FEC.Data > 0 || c.FEC.Parity > 0 {
 		return fmt.Errorf("l3: carrier %q cannot carry error correction: the kernel sends GRE itself, "+
-			"and fec_data/fec_parity work only on Backpack's own carriers. Remove both keys", c.Carrier)
+			"and fec_data/fec_parity work only on SoberLinkPack's own carriers. Remove both keys", c.Carrier)
 	}
 	return nil
 }

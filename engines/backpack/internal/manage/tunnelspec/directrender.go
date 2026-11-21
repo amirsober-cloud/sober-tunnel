@@ -217,7 +217,7 @@ func (s L3Spec) renderPck() string {
 
 	b.WriteString("# PCK tunnel — forwards ports between the two servers over KCP, carried in\n")
 	b.WriteString("# crafted TCP packets that look like an ordinary connection. Created by the\n")
-	b.WriteString("# Backpack setup wizard. Both ends must share the token and the carrier.\n")
+	b.WriteString("# SoberLinkPack setup wizard. Both ends must share the token and the carrier.\n")
 	b.WriteString("#\n")
 	b.WriteString("# There is no network interface and there are no tunnel addresses to set: the\n")
 	b.WriteString("# interface, this server's address and the gateway are found at start.\n")
@@ -308,7 +308,7 @@ func (s L3Spec) renderGRE() string {
 	var b strings.Builder
 
 	b.WriteString("# Kernel GRE (layer 3) — a private network between the two servers.\n")
-	b.WriteString("# Created by the Backpack setup wizard.\n")
+	b.WriteString("# Created by the SoberLinkPack setup wizard.\n")
 	b.WriteString("#\n")
 	b.WriteString("# NOT ENCRYPTED. The kernel sends this tunnel as bare IP protocol 47, and\n")
 	b.WriteString("# whatever crosses it is in the clear unless it is encrypted itself. Both\n")

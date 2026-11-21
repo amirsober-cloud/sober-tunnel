@@ -34,7 +34,7 @@ This update does not restore any endpoints previously removed by the operator.
    endpoint probation/cooldown to the panel before adding a separate controller.
 3. BackPack: integrate upstream v2 mutual challenge/response and authenticated
    backend addresses, with persistent downgrade protection and compatibility
-   tests, before expanding plaintext carrier use. This migration is still pending.
+   tests, before expanding plaintext carrier use. This migration is implemented on the v2 validation branch; see [integration details](v2-integration.md).
 4. Both: offer explicit certificate/name validation or SPKI pinning with a
    rotation workflow. Preserve and test existing token/channel-binding proofs;
    a self-signed certificate is not itself an identity. Do not adopt Rathole's

@@ -1114,7 +1114,7 @@ func applyDirectEdit(l config.L3Config, e DirectEdit) (config.L3Config, error) {
 	if e.FEC != nil {
 		if *e.FEC && l3.KernelCarrier(l.Carrier) {
 			return l, fmt.Errorf("a GRE tunnel has no error correction: the kernel sends it, " +
-				"and FEC works only on Backpack's own carriers")
+				"and FEC works only on SoberLinkPack's own carriers")
 		}
 		if *e.FEC && pck {
 			return l, fmt.Errorf("a PCK tunnel has no error correction to turn on: KCP retransmits " +

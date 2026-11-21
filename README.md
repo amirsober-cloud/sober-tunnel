@@ -40,7 +40,7 @@ HTTPS اولیه گواهی خودامضا دارد. این نسخه آزمای�
 
 ## Build and install
 
-Requires Go 1.26.10 or newer. Production management requires Linux + systemd.
+Requires Go 1.26.11 or newer. Production management requires Linux + systemd. Source builds also require a C compiler, flex and bison; the build verifies and statically links pinned libpcap. Published binaries need no compiler or libpcap installation.
 
 ```sh
 bash scripts/build.sh
@@ -48,7 +48,7 @@ sudo bash scripts/install.sh
 sudo sober-tunnel
 ```
 
-On Windows, cross-build the Linux binary:
+On Windows, cross-build with a Linux C cross-compiler in `CC` and a matching static libpcap installation in `LIBPCAP_PREFIX`:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1

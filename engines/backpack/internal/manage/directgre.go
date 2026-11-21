@@ -465,7 +465,7 @@ func (n NewDirectTunnel) greSpec(side directSide, carrier string) (l3Spec, error
 	}
 	if n.FEC || n.FECData > 0 || n.FECParity > 0 {
 		return l3Spec{}, fmt.Errorf("a GRE tunnel has no error correction: the kernel sends it, " +
-			"and FEC works only on Backpack's own carriers")
+			"and FEC works only on SoberLinkPack's own carriers")
 	}
 
 	localIP, peerIP := strings.TrimSpace(n.LocalIP), strings.TrimSpace(n.PeerIP)

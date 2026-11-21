@@ -28,5 +28,5 @@ func CaptureFilter(server bool, lo, hi uint16, local, peer net.IP, peerPort uint
 }
 
 // ErrNoPcap is what OpenPcap answers in a build without libpcap.
-var ErrNoPcap = errors.New("pck: this build of Backpack has no libpcap, so the packet carrier cannot run. " +
+var ErrNoPcap = errors.New("pck: this build of SoberLinkPack has no libpcap, so the packet carrier cannot run. " +
 	"Install the official release binary (it is linked with libpcap), or build with CGO_ENABLED=1 and libpcap headers (see CONTRIBUTING.md)")

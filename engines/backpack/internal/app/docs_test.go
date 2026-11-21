@@ -40,7 +40,11 @@ func TestEveryDocumentSaysWhenItWasVerified(t *testing.T) {
 				"read as current however old it is.", filepath.Base(path))
 			continue
 		}
-		if !strings.Contains(s, want) {
+		expected := want
+		if filepath.Base(path) == "config-reference.md" {
+			expected = "Last verified against " + EngineName + " " + Version
+		}
+		if !strings.Contains(s, expected) {
 			t.Errorf("%s was last verified against an older version than %s. Either "+
 				"re-read it and move the stamp, or leave the stamp where it is — "+
 				"but this failing means nobody has decided which.", filepath.Base(path), Version)

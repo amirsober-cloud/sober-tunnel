@@ -295,4 +295,4 @@ them both ends have to agree on. This says what exists.
 
 ---
 
-*Generated from `config/` on 2026-11-09. Last verified against sober-tunnel v0.1.4.*
+*Generated from `config/` on 2026-11-21. Last verified against SoberLinkPack v0.2.2.*

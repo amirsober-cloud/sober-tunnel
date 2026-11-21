@@ -27,7 +27,7 @@ case "$install_mode" in
       aarch64|arm64) arch=arm64 ;;
       *) echo 'Release installation supports amd64 and arm64.' >&2; exit 1 ;;
     esac
-    version="${SOBER_VERSION:-v0.3.0}"
+    version="${SOBER_VERSION:-v0.3.1}"
     [[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || { echo 'Invalid SOBER_VERSION.' >&2; exit 1; }
     archive="sober-tunnel_linux_${arch}.tar.gz"
     base="https://github.com/amirsober-cloud/sober-tunnel/releases/download/$version"

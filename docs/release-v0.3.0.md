@@ -1,4 +1,4 @@
-# v0.3.0 — SoberLinkPack naming and bounded Camouflage fallback
+# v0.3.1 — SoberLinkPack naming and bounded Camouflage fallback
 
 The managed BackPack-derived engine is presented as SoberLinkPack, under the
 Sober Tunnel product. Camouflage remains an independent executable. Existing

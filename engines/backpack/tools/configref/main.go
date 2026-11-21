@@ -214,7 +214,7 @@ func write(fields []field) {
 		"[performance-presets](performance-presets.md).\n\n"+
 		"</div>\n")
 
-	fmt.Fprintf(out, "\n---\n\n*Generated from `config/` on %s. Last verified against sober-tunnel %s.*\n",
+	fmt.Fprintf(out, "\n---\n\n*Generated from `config/` on %s. Last verified against SoberLinkPack %s.*\n",
 		time.Now().Format("2006-01-02"), version())
 }
 

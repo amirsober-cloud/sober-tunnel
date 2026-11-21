@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func TestMonitoredStreamCloseUnblocksRateLimit(t *testing.T) {
 	if err := ms.Close(); err != nil { // cancels ctx
 		t.Fatalf("close: %v", err)
 	}
-	if _, err := ms.Write([]byte("payload-larger-than-burst")); err != nil {
+	if _, err := ms.Write([]byte("payload-larger-than-burst")); !errors.Is(err, context.Canceled) {
 		t.Fatalf("write: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
@@ -107,5 +108,23 @@ func TestDrainingState(t *testing.T) {
 	s.Revive()
 	if !s.IsActive() || s.IsDraining() {
 		t.Fatal("after Revive should be Active")
+	}
+}
+
+func TestLargeWriteAccountsForEveryByte(t *testing.T) {
+	ys := &YamuxSession{limiter: rate.NewLimiter(40, 4)}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	stream := &monitoredStream{Conn: fakeConn{}, parent: ys, ctx: ctx, cancel: cancel}
+	start := time.Now()
+	n, err := stream.Write(make([]byte, 12))
+	if n != 12 || err != nil {
+		t.Fatalf("write %d %v", n, err)
+	}
+	if time.Since(start) < 150*time.Millisecond {
+		t.Fatal("large write bypassed sustained rate cap")
+	}
+	if ys.cumulativeBytes != 12 {
+		t.Fatal("incorrect transferred byte count")
 	}
 }

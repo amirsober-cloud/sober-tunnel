@@ -458,9 +458,10 @@ func runVersion(args []string) Result {
 			Version string `json:"version"`
 			Source  string `json:"source"`
 			Licence string `json:"licence"`
-		}{app.Version, app.SourceURL, "AGPL-3.0"})
+			Engine  string `json:"engine"`
+		}{app.Version, app.SourceURL, "AGPL-3.0", app.EngineName})
 	}
-	return ok(app.Version + "\n" + app.SourceURL + "\n")
+	return ok(app.Version + "\n" + app.SourceURL + "\n" + app.EngineName + "\n")
 }
 
 func jsonResult(v any) Result {

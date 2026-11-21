@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	mrand "math/rand/v2"
@@ -43,10 +44,16 @@ func clientMimicFor(ep config.Endpoint, token string) mimic.ClientMimic {
 // DialEndpoint dials one endpoint: TCP connect, mimic handshake, Yamux client.
 // Shared by the pool dialer and the speedtest CLI.
 func DialEndpoint(ep config.Endpoint, token string, cfg *yamux.Config) (*yamux.Session, error) {
-	conn, err := net.DialTimeout("tcp", ep.Target, 8*time.Second)
+	return dialEndpointContext(context.Background(), ep, token, cfg)
+}
+func dialEndpointContext(ctx context.Context, ep config.Endpoint, token string, cfg *yamux.Config) (*yamux.Session, error) {
+	dialer := net.Dialer{Timeout: 8 * time.Second, KeepAlive: 30 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", ep.Target)
 	if err != nil {
 		return nil, err
 	}
+	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	defer stop()
 	secureConn, err := clientMimicFor(ep, token).Dial(conn)
 	if err != nil {
 		conn.Close()
@@ -248,24 +255,88 @@ func (d *endpointDialer) recordFailure(target string) {
 // entry port does not stop the tunnel from coming up. The first port that completes
 // the mimic handshake wins; failures cool the port down so it is skipped next time.
 func (d *endpointDialer) dial() (*yamux.Session, string, error) {
-	var lastErr error
-	for _, ep := range d.attemptOrder() {
-		session, err := DialEndpoint(ep, d.node.AuthToken, d.cfg)
-		if err != nil {
+	order := d.attemptOrder()
+	session, ep, err := raceEndpointAttempts(context.Background(), order, 1200*time.Millisecond, func(ctx context.Context, ep config.Endpoint) (*yamux.Session, error) {
+		session, err := dialEndpointContext(ctx, ep, d.node.AuthToken, d.cfg)
+		if err != nil && ctx.Err() == nil {
 			d.recordFailure(ep.Target)
 			slog.Warn("pipe dial failed", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target, "err", err)
-			lastErr = err
-			continue
 		}
-		// Admission is provisional: only sustained in-session round trips reset failures.
-		slog.Info("pipe established", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target)
-		go d.monitorSession(session, ep)
-		return session, ep.Mimic, nil
+		return session, err
+	})
+	if err != nil {
+		return nil, "", err
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("node %q has no endpoints to dial", d.node.Alias)
+	slog.Info("pipe established", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target)
+	go d.monitorSession(session, ep)
+	return session, ep.Mimic, nil
+}
+
+// At most dialMaxAttempts compete; cancelling closes losing handshakes. A
+// blocked first candidate costs one stagger, not its full handshake timeout.
+func raceEndpointAttempts(parent context.Context, endpoints []config.Endpoint, stagger time.Duration, dial func(context.Context, config.Endpoint) (*yamux.Session, error)) (*yamux.Session, config.Endpoint, error) {
+	if len(endpoints) == 0 {
+		return nil, config.Endpoint{}, fmt.Errorf("no eligible endpoints")
 	}
-	return nil, "", lastErr
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	type result struct {
+		session *yamux.Session
+		ep      config.Endpoint
+		err     error
+	}
+	results := make(chan result)
+	start := func(ep config.Endpoint) {
+		go func() {
+			session, err := dial(ctx, ep)
+			select {
+			case results <- result{session, ep, err}:
+			case <-ctx.Done():
+				if session != nil {
+					session.Close()
+				}
+			}
+		}()
+	}
+	next, pending := 1, 1
+	start(endpoints[0])
+	timer := time.NewTimer(stagger)
+	defer timer.Stop()
+	var lastErr error
+	for {
+		select {
+		case <-parent.Done():
+			return nil, config.Endpoint{}, parent.Err()
+		case r := <-results:
+			pending--
+			if r.err == nil && r.session != nil {
+				return r.session, r.ep, nil
+			}
+			if r.session != nil {
+				r.session.Close()
+			}
+			lastErr = r.err
+			if next < len(endpoints) {
+				start(endpoints[next])
+				next++
+				pending++
+				timer.Reset(stagger)
+			}
+			if pending == 0 {
+				if lastErr == nil {
+					lastErr = fmt.Errorf("all endpoint attempts failed")
+				}
+				return nil, config.Endpoint{}, lastErr
+			}
+		case <-timer.C:
+			if next < len(endpoints) {
+				start(endpoints[next])
+				next++
+				pending++
+				timer.Reset(stagger)
+			}
+		}
+	}
 }
 
 // monitorSession tests the existing authenticated encrypted session. It does not
@@ -287,6 +358,10 @@ func (d *endpointDialer) monitorSessionWithTiming(session *yamux.Session, ep con
 		select {
 		case <-session.CloseChan():
 			timer.Stop()
+			if successes < 2 {
+				d.recordFailure(ep.Target)
+				slog.Warn("path closed before sustained readiness", "node", d.node.Alias, "mimic", ep.Mimic, "target", ep.Target)
+			}
 			return
 		case <-timer.C:
 		}

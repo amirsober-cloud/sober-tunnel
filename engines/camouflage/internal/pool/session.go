@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 	"sync"
@@ -106,35 +107,45 @@ func (m *monitoredStream) Read(b []byte) (int, error) {
 		// Enforce Hard Rate Limit (Token Bucket) AFTER reading.
 		// This forces the app to consume data slowly, filling up the OS socket buffer.
 		// The OS will then naturally reduce the TCP Window Size (Backpressure), slowing down the sender.
-		toWait := n
-		burst := m.parent.limiter.Burst()
-		if toWait > burst {
-			toWait = burst // Clamp to burst size to prevent WaitN from returning an error
+		for remaining := n; remaining > 0; {
+			chunk := remaining
+			if chunk > m.parent.limiter.Burst() {
+				chunk = m.parent.limiter.Burst()
+			}
+			if waitErr := m.parent.limiter.WaitN(m.ctx, chunk); waitErr != nil {
+				return n, waitErr
+			}
+			remaining -= chunk
 		}
-		// Bound the wait to the stream's lifetime; on close WaitN returns immediately.
-		_ = m.parent.limiter.WaitN(m.ctx, toWait)
 	}
 	return n, err
 }
 
 func (m *monitoredStream) Write(b []byte) (int, error) {
-	// Enforce Hard Rate Limit BEFORE writing.
-	// This prevents dumping huge payloads into the OS buffer instantly, smoothing out outbound traffic.
-	if len(b) > 0 {
-		toWait := len(b)
-		burst := m.parent.limiter.Burst()
-		if toWait > burst {
-			toWait = burst
+	total := 0
+	for len(b) > 0 {
+		chunk := len(b)
+		if chunk > m.parent.limiter.Burst() {
+			chunk = m.parent.limiter.Burst()
 		}
-		_ = m.parent.limiter.WaitN(m.ctx, toWait)
+		if err := m.parent.limiter.WaitN(m.ctx, chunk); err != nil {
+			return total, err
+		}
+		n, err := m.Conn.Write(b[:chunk])
+		total += n
+		if n > 0 {
+			atomic.AddUint64(&m.parent.bytesTransferred, uint64(n))
+			atomic.AddUint64(&m.parent.cumulativeBytes, uint64(n))
+		}
+		if err != nil {
+			return total, err
+		}
+		if n != chunk {
+			return total, io.ErrShortWrite
+		}
+		b = b[n:]
 	}
-
-	n, err := m.Conn.Write(b)
-	if n > 0 {
-		atomic.AddUint64(&m.parent.bytesTransferred, uint64(n))
-		atomic.AddUint64(&m.parent.cumulativeBytes, uint64(n))
-	}
-	return n, err
+	return total, nil
 }
 
 // OpenStream opens a new logical stream, wrapping it in our bandwidth monitor & shaper.

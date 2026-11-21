@@ -1,6 +1,6 @@
-# sober-tunnel
+# Sober Tunnel
 
-A unified management panel and executable for multiple tunnel engines.
+A shared management panel for SoberLinkPack (the adapted BackPack engine) and the independent Camouflage core.
 
 - Reverse/direct port forwarding, TCP, WebSocket/TLS, KCP, QUIC, UDP,
   transport fallback, and a separate layer-3 engine from BackPack.

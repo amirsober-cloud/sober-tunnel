@@ -216,7 +216,7 @@ function facts(s) {
      the doubt and are marked with it rather than presented as findings. */
   const from = s.ipv4Source === 'echo' ? ' (inferred)' : '';
   const rows = [
-    ['Host', s.hostname], ['Version', s.version], ['OS', s.os],
+    ['Host', s.hostname], ['Engine', brand.engine], ['Version', s.version], ['OS', s.os],
     ['Location' + from, s.location], ['ISP' + from, s.isp],
     ['IPv4' + from, s.ipv4], ['IPv6', s.ipv6], ['Uptime', s.uptime],
     // Both of these have a row above when they are wrong. Here they are just

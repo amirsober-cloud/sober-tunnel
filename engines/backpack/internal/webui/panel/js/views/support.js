@@ -31,7 +31,7 @@ function stampVersion(root) {
   if (!el) return;
   try {
     const v = document.documentElement.dataset.version || '';
-    if (v) el.textContent = v;
+    if (v) el.textContent = `${brand.engine} · ${v}`;
   } catch (e) { /* the notice stands without it */ }
 }
 

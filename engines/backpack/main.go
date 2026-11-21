@@ -99,6 +99,7 @@ func main() {
 	case *showVersion:
 		fmt.Println(app.Version)
 		fmt.Println(app.SourceURL)
+		fmt.Println(app.EngineName)
 		return
 	case *restartAll:
 		ok, failed := manage.RestartAll()

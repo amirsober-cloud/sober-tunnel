@@ -136,7 +136,7 @@ func Logo(version string) {
  ╚══════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
              T U N N E L`)
 	fmt.Print(Reset)
-	fmt.Printf("%s sober-tunnel  %s%s%s\n", Bold+White, Red, version, Reset)
+	fmt.Printf("%s Sober Tunnel / SoberLinkPack  %s%s%s\n", Bold+White, Red, version, Reset)
 	fmt.Println(Gray + " GitHub : https://github.com/amirsober-cloud/sober-tunnel" + Reset)
 	fmt.Println(Gray + " Telegram : https://t.me/sobervpn" + Reset)
 }

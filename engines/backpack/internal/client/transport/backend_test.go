@@ -7,10 +7,10 @@ import (
 	"io"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/backpack/backpack/internal/metrics"
 	"github.com/backpack/backpack/internal/utils"
 	"github.com/backpack/backpack/internal/utils/network"
 	"github.com/xtaci/smux"
@@ -363,18 +363,14 @@ func TestUDPBackendReceivesEveryFramedDatagram(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	backend, err := net.DialUDP("udp", nil, listener.LocalAddr().(*net.UDPAddr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer backend.Close()
 	user, stream := net.Pipe()
 	defer user.Close()
 	defer stream.Close()
 	done := make(chan struct{})
+	beforeIn, beforeOut := metrics.Traffic()
 	go func() {
 		defer close(done)
-		tunnelToBackend(stream, backend, silentLogger(), nil, 0, false, new(atomic.Int64))
+		udpForwardContext(context.Background(), time.Second, stream, listener.LocalAddr().String(), silentLogger(), nil, 0, false)
 	}()
 	t.Cleanup(func() {
 		stream.Close()
@@ -385,6 +381,8 @@ func TestUDPBackendReceivesEveryFramedDatagram(t *testing.T) {
 		}
 	})
 	received := make([]byte, network.MaxDatagram)
+	var sentBytes uint64
+	var peer *net.UDPAddr
 	for _, size := range []int{0, 1, 1200, 16385, 64000, 7, 0, 1200} {
 		payload := bytes.Repeat([]byte{byte(size)}, size)
 		var frame bytes.Buffer
@@ -401,15 +399,30 @@ func TestUDPBackendReceivesEveryFramedDatagram(t *testing.T) {
 			}
 		}
 		listener.SetReadDeadline(time.Now().Add(2 * time.Second))
-		n, _, err := listener.ReadFromUDP(received)
+		n, source, err := listener.ReadFromUDP(received)
 		if err != nil || !bytes.Equal(received[:n], payload) {
 			t.Fatalf("payload size%d received%d err%v", size, n, err)
 		}
+		peer = source
+		sentBytes += uint64(size)
+	}
+	reply := []byte("UDP response")
+	if _, err := listener.WriteToUDP(reply, peer); err != nil {
+		t.Fatal(err)
+	}
+	user.SetReadDeadline(time.Now().Add(time.Second))
+	gotReply, err := network.ReadDatagramInto(user, nil)
+	if err != nil || !bytes.Equal(gotReply, reply) {
+		t.Fatalf("read UDP reply %q: %v", gotReply, err)
 	}
 	user.Close()
 	select {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("EOF did not end UDP receive worker")
+	}
+	in, out := metrics.Traffic()
+	if in-beforeIn != sentBytes || out-beforeOut != uint64(len(reply)) {
+		t.Fatalf("UDP payload counters in=%d out=%d, want %d/%d", in-beforeIn, out-beforeOut, sentBytes, len(reply))
 	}
 }

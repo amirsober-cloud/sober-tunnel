@@ -59,15 +59,15 @@ func (b *datagramBatch) put(payload []byte) {
 
 // take blocks until something is queued, then appends as many whole queued
 // frames as fit in limit bytes (at least one) to dst[:0] and returns it. It
-// returns false once the batch is closed.
-func (b *datagramBatch) take(dst []byte, limit int) ([]byte, bool) {
+// returns the payload byte count excluding framing, or false once closed.
+func (b *datagramBatch) take(dst []byte, limit int) ([]byte, int, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for len(b.frames) == 0 && !b.closed {
 		b.cond.Wait()
 	}
 	if b.closed {
-		return dst, false
+		return dst, 0, false
 	}
 	dst = dst[:0]
 	n := 0
@@ -85,7 +85,7 @@ func (b *datagramBatch) take(dst []byte, limit int) ([]byte, bool) {
 	if len(b.frames) == 0 {
 		b.frames = nil
 	}
-	return dst, true
+	return dst, len(dst) - 2*n, true
 }
 
 func (b *datagramBatch) close() {

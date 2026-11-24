@@ -25,19 +25,19 @@ func TestDatagramBatchTakesWhatQueued(t *testing.T) {
 		b.put(p)
 		want = append(want, frameOf(p)...)
 	}
-	got, ok := b.take(nil, 4096)
-	if !ok || !bytes.Equal(got, want) {
+	got, payload, ok := b.take(nil, 4096)
+	if !ok || payload != 500 || !bytes.Equal(got, want) {
 		t.Fatalf("take returned %d bytes ok=%v, want %d", len(got), ok, len(want))
 	}
 
 	for i := 0; i < 10; i++ {
 		b.put(bytes.Repeat([]byte{byte(i)}, 50)) // 52 bytes a frame
 	}
-	got, _ = b.take(nil, 160)
+	got, _, _ = b.take(nil, 160)
 	if len(got) != 3*52 {
 		t.Fatalf("a 160-byte limit took %d bytes, want 3 whole frames", len(got))
 	}
-	got, _ = b.take(got, 10) // a frame larger than the limit still goes
+	got, _, _ = b.take(got, 10) // a frame larger than the limit still goes
 	if len(got) != 52 {
 		t.Fatalf("an oversize first frame took %d bytes, want 52", len(got))
 	}
@@ -49,7 +49,7 @@ func TestDatagramBatchDropsOldest(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		b.put([]byte{byte(i)})
 	}
-	got, _ := b.take(nil, 100)
+	got, _, _ := b.take(nil, 100)
 	want := append(append(frameOf([]byte{3}), frameOf([]byte{4})...), frameOf([]byte{5})...)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("kept %v, want the newest three", got)
@@ -68,9 +68,9 @@ func TestDatagramBatchBlocksAndCloses(t *testing.T) {
 	}
 	out := make(chan res, 2)
 	go func() {
-		got, ok := b.take(nil, 100)
+		got, _, ok := b.take(nil, 100)
 		out <- res{len(got), ok}
-		got, ok = b.take(nil, 100)
+		got, _, ok = b.take(nil, 100)
 		out <- res{len(got), ok}
 	}()
 	select {

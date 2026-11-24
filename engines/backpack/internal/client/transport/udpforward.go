@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/backpack/backpack/internal/metrics"
 	"github.com/backpack/backpack/internal/utils/network"
 	"github.com/backpack/backpack/internal/web"
 	"github.com/gorilla/websocket"
@@ -124,10 +125,15 @@ func tunnelToBackend(stream net.Conn, backend *net.UDPConn, logger *logrus.Logge
 			logger.Tracef("UDP flow to %s ended: %v", backend.RemoteAddr(), err)
 			return
 		}
-		if _, err := backend.Write(buf); err != nil {
+		n, err := backend.Write(buf)
+		if err == nil && n != len(buf) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
 			logger.Debugf("failed to write to UDP backend %s: %v", backend.RemoteAddr(), err)
 			return
 		}
+		metrics.AddBytes(uint64(n), 0)
 		activity.Store(time.Now().UnixNano())
 		_ = backend.SetReadDeadline(time.Now().Add(udpBackendIdle))
 		if sniffer {
@@ -169,15 +175,21 @@ func backendToTunnel(stream net.Conn, backend *net.UDPConn, logger *logrus.Logge
 	}()
 	var out []byte
 	for {
+		var payloadBytes int
 		var ok bool
-		out, ok = q.take(out, batchLimit)
+		out, payloadBytes, ok = q.take(out, batchLimit)
 		if !ok {
 			return
 		}
-		if _, err := stream.Write(out); err != nil {
+		n, err := stream.Write(out)
+		if err == nil && n != len(out) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
 			logger.Debugf("failed to write a datagram to the tunnel: %v", err)
 			return
 		}
+		metrics.AddBytes(0, uint64(payloadBytes))
 	}
 }
 

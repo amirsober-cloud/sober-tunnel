@@ -10,7 +10,7 @@ import (
 
 const (
 	// Version of the backpack engine.
-	Version     = "v0.4.3"
+	Version     = "v0.4.4"
 	EngineName  = "SoberLinkPack"
 	ShowcaseURL = ""
 

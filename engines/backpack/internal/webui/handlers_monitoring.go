@@ -233,6 +233,7 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	// than refused, since a bad number here is worth a shorter chart, not an
 	// error page.
 	type day struct {
+		Date  string `json:"date"`  // UTC calendar day, shared with Camouflage
 		Label string `json:"label"` // "Mon 21"
 		In    uint64 `json:"in"`
 		Out   uint64 `json:"out"`
@@ -252,19 +253,20 @@ func (s *server) handleHistory(w http.ResponseWriter, r *http.Request) {
 		if b.T < from || b.In < a.In || b.Out < a.Out {
 			continue
 		}
-		label := time.Unix(b.T, 0).Format("Mon 2")
-		d := days[label]
+		at := time.Unix(b.T, 0).UTC()
+		date := at.Format(time.DateOnly)
+		d := days[date]
 		if d == nil {
-			d = &day{Label: label}
-			days[label] = d
-			order = append(order, label)
+			d = &day{Date: date, Label: at.Format("Mon 2")}
+			days[date] = d
+			order = append(order, date)
 		}
 		d.In += b.In - a.In
 		d.Out += b.Out - a.Out
 	}
 	dayList := make([]day, 0, len(order))
-	for _, label := range order {
-		dayList = append(dayList, *days[label])
+	for _, date := range order {
+		dayList = append(dayList, *days[date])
 	}
 
 	// Uptime: the day from the 5-minute samples, the week from the hourly

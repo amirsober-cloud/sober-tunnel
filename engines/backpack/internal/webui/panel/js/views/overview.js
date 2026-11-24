@@ -49,21 +49,29 @@ async function loadDayTotals(names) {
   for (const r of runs) {
     if (r.status !== 'fulfilled' || !r.value?.days) continue;
     for (const d of r.value.days) {
-      sum.set(d.label, (sum.get(d.label) || 0) + (d.in || 0) + (d.out || 0));
+      if (d.date) sum.set(d.date, (sum.get(d.date) || 0) + (d.in || 0) + (d.out || 0));
     }
   }
-  dayTotals = [...sum].map(([label, b]) => ({ label, bytes: b }));
+  dayTotals = [...sum];
   return dayTotals;
 }
 
 /* Drawn as elements rather than an SVG path so each day can carry its own
    growth delay — the chart fills left to right in the order the days happened,
    which is the one thing a month of traffic has to say. */
+const chartDayLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+
 function dayBars(camouflageDays = {}) {
-  const merged = new Map((dayTotals || []).map(d => [d.label, d.bytes]));
+  const merged = new Map(dayTotals || []);
   for (const [label, value] of Object.entries(camouflageDays)) merged.set(label, (merged.get(label) || 0) + value);
-  const days = [...merged].sort(([a],[b])=>a.localeCompare(b)).map(([label, bytes])=>({label,bytes}));
-  if (!days?.length) {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(today.getTime() - (29 - i) * 86400000);
+    const date = day.toISOString().slice(0, 10);
+    return { date, label: chartDayLabel.format(day), bytes: merged.get(date) || 0 };
+  });
+  if (!days.some(d => merged.has(d.date))) {
     return `<div class="tk-empty">No per-day figures yet — they build up as the tunnels carry traffic.</div>`;
   }
   const peak = Math.max(...days.map(d => d.bytes), 1);
@@ -343,15 +351,16 @@ export function overview(ctx) {
           <div class="tk-split" aria-hidden="true">
             <i class="up"></i><i class="dn"></i>
           </div>
-          <div id="ovDays"></div><section style="padding:16px"><a href="#/camouflage">Camouflage traffic →</a><p id="ovCamRate">Waiting for Camouflage traffic…</p><svg viewBox="0 0 600 120" role="img" aria-label="Camouflage sent and received bytes per second" style="width:100%;height:120px"><polyline id="ovCamTx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="ovCamRx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received</small></section>
+          <div id="ovDays"></div>
         </div>
 
-        <!-- Beside the traffic on a desktop; see overview.css. -->
         <div id="ovShow"></div>
 
         ${quickActions()}
         <div id="ovFacts"></div>
       </div>
+
+      <section class="tk ov-cam-traffic" id="ovCamTraffic" hidden><a href="#/camouflage">Camouflage traffic →</a><p id="ovCamRate">Waiting for Camouflage traffic…</p><svg viewBox="0 0 600 120" role="img" aria-label="Camouflage sent and received bytes per second"><polyline id="ovCamTx" fill="none" stroke="#f59e0b" stroke-width="2"/><polyline id="ovCamRx" fill="none" stroke="#22c55e" stroke-width="2"/></svg><small>Orange: sent · Green: received</small></section>
 
       ${footer()}
     </div>`;
@@ -434,6 +443,7 @@ export function overview(ctx) {
 
     region('ovDays', JSON.stringify([dayTotals,s.camouflage?.days]), dayBars(s.camouflage?.days));
     const cam=s.camouflage||{}, now=Date.now();
+    el('ovCamTraffic').hidden = !cam.total && !cam.sent && !cam.received;
     if(camPrevious && now-camPrevious.at>=1000){
       const dt=(now-camPrevious.at)/1000;
       camSamples.push([Math.max(0,(cam.sent||0)-camPrevious.sent)/dt,Math.max(0,(cam.received||0)-camPrevious.received)/dt]);

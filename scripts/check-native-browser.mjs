@@ -4,6 +4,10 @@ import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const cfg=JSON.parse(await readFile('/etc/sober-tunnel/webui.json','utf8'));
+// A stopped BackPack tunnel must still render and leave Add tunnel usable.
+await writeFile('/etc/sober-tunnel/browser-wss.toml',
+  '[client]\nremote_addr = "127.0.0.1:2055"\ntransport = "wssmux"\ntoken = "browser-fixture"\n',
+  {mode:0o600});
 const origin=`http://127.0.0.1:${cfg.port}`, base=origin+'/'+cfg.base_path.replace(/^\/+|\/+$/g,'');
 const chrome=spawn('chromium',['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--no-proxy-server','--remote-debugging-port=19222','--user-data-dir=/tmp/sober-native-browser','about:blank'],{stdio:'ignore'});
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -51,6 +55,11 @@ try {
   await until("document.querySelector('#ovCamRate')?.textContent.includes('Camouflage cores running')");
   await evaluate("location.hash='/tunnels';true");
   await until("document.querySelector('#mimic-fleet .sb')");
+  await until("document.querySelector('[data-name=browser-wss] [data-act=edit]') && document.querySelector('[data-name=browser-wss] [data-do=restart]')");
+  await evaluate("document.querySelector('[data-name=browser-wss] [data-act=edit]').click();true");
+  await until("location.hash.endsWith('/browser-wss/edit') && document.querySelector('.dlg .ttl input[name=name]')?.value==='browser-wss'");
+  await evaluate("location.hash='/tunnels';true");
+  await until("location.hash==='#/tunnels' && document.querySelector('[data-name=browser-wss] [data-act=edit]')");
   await evaluate("document.querySelector('[data-act=add]').click();true");
   await until("document.querySelector('.mimic-engine-choice button')");
   await until("!document.querySelector('.mimic-engine-choice').closest('.dlg').classList.contains('priming')");

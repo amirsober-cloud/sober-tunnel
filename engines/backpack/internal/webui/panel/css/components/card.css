@@ -241,6 +241,8 @@ body[data-accent="signal"] .c7 .kind span.pr{background:color-mix(in srgb,var(--
   cursor:pointer;display:grid;place-items:center;transition:background .25s ease,color .25s ease,transform .12s ease-out}
 .btn:hover{background:var(--sunk);color:var(--tx)} .btn:active{transform:scale(.9)}
 .btn .iA{width:14px;height:14px}
+.c7 .foot .edit-tunnel{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  width:auto;padding:0 9px;font:inherit;font-weight:600;white-space:nowrap}
 
 /* the source-mapping table */
 .map{border:1px solid var(--ln);border-radius:14px;overflow:hidden;background:var(--s1)}

@@ -10,7 +10,7 @@
 
 import * as api from './api.js';
 
-const state = { stats: null, tunnels: [], alerts: null, error: null };
+const state = { stats: null, tunnels: [], alerts: null, error: null, tunnelError: null };
 const subs = new Set();
 let timers = [];
 
@@ -32,8 +32,14 @@ export async function loadStats() {
 }
 
 export async function loadTunnels() {
-  try { state.tunnels = await api.tunnels() || []; state.error = null; }
-  catch (e) { state.error = e; }
+  try {
+    const tunnels = await api.tunnels();
+    if (!Array.isArray(tunnels)) throw new Error('Invalid tunnel list response');
+    state.tunnels = tunnels;
+    state.tunnelError = null;
+  } catch (e) {
+    state.tunnelError = e;
+  }
   emit();
   return state.tunnels;
 }

@@ -10,6 +10,7 @@
 import { $, delegate, esc } from '../lib/dom.js';
 import { isUp, stateLabel, stateTone, serviceDown } from '../lib/tstate.js';
 import { bytes, speed, kindLabel, flag } from '../lib/format.js';
+import { svg } from '../lib/icons.js';
 import * as store from '../store.js';
 import * as api from '../api.js';
 import { toast, oops, onFix } from '../ui/toast.js';
@@ -289,10 +290,11 @@ ${field(t, idx)}
 <div class="foot">
   <span class="tot"><i>↓</i>${esc(bytes(t.inBytes || 0))}<i>↑</i>${esc(bytes(t.outBytes || 0))}</span>
   <span class="sp2"></span>
-  <button class="btn" data-act="edit"   title="Edit">${BTN.edit}</button>
+  <button class="btn edit-tunnel" type="button" data-act="edit" title="Edit tunnel">${BTN.edit}<span>Edit</span></button>
+  <button class="btn" type="button" data-do="restart" title="Restart tunnel" aria-label="Restart tunnel">${svg('restart', 'iA')}</button>
   <button class="btn" data-act="logs"   title="Logs">${BTN.logs}</button>
   <button class="btn" data-act="detail" title="Metrics">${BTN.chart}</button>
-  <button class="btn" data-act="more"   title="Start, stop, restart, delete">${BTN.more}</button>
+  <button class="btn" data-act="more"   title="Start, stop, more actions">${BTN.more}</button>
 </div>
 
 ${st ? `<div class="permenu">
@@ -304,7 +306,6 @@ ${st ? `<div class="permenu">
 <div class="card-more">
   <button data-do="start"><span>${svg('play')}</span>Start</button>
   <button data-do="stop"><span>${svg('stop')}</span>Stop</button>
-  <button data-do="restart"><span>${svg('restart')}</span>Restart</button>
   <div class="sep2"></div>
   <!-- Offered only while the other end is unknown. Everything the fleet does
        for a tunnel is gated on knowing where that end lives, and a tunnel not
@@ -401,7 +402,8 @@ function quotaMeter(t) {
 
 /* What a card draws, minus the chart.
  *
- * The chart is left out on purpose. Its points change on every poll, so a
+ * The chart's visibility belongs here so a card created before samples arrive
+ * can gain its chart and controls. The points change on every poll, so a
  * signature that included them would never match and the card would be rebuilt
  * every few seconds — which is the fault this exists to stop. The line is
  * updated in place instead; see paint.
@@ -413,6 +415,7 @@ function cardSig(t) {
     t.peerLocation, t.peerISP, t.botRelay, t.botRelayPort, t.tunnelPort,
     t.kcpLossPercent, t.pool, t.preset, t.certType, t.certDomain, t.certExpiry,
     t.maxConnections, t.bandwidthMbps, t.quotaLimit, t.quotaHit, t.quotaSettable,
+    seriesOf(t).length >= 2,
   ]);
 }
 
@@ -427,11 +430,13 @@ export function dashboard(ctx) {
       <button class="sb" data-act="restartall">Restart all</button>
       <button class="sb primary" data-act="add">Add tunnel</button>
     </div>
+    <div class="grid3"><div class="emptybox" id="tListError" role="status" hidden></div></div>
     <div class="grid3" id="tGrid"></div><section id="mimic-fleet"></section>`;
 
   const stopMimicFleet=mountMimicFleet($('#mimic-fleet',view));
 
   const grid = $('#tGrid', view);
+  const listError = $('#tListError', view);
   const held = new Map();   // name -> { el, sig }
 
   /* Painting without rebuilding.
@@ -449,11 +454,19 @@ export function dashboard(ctx) {
    */
   const paint = state => {
     const tuns = state.tunnels || [];
+    const failure = state.tunnelError;
+    listError.hidden = !failure;
+    listError.textContent = failure
+      ? (failure.status === 401 || failure.status === 403
+        ? 'Could not load tunnels. Sign in again to refresh the list.'
+        : 'Could not load tunnels. The panel will retry automatically.')
+      : '';
     $('#tCount', view).textContent = String(tuns.length);
 
     if (!tuns.length) {
       held.clear();
-      if (!grid.querySelector('.emptybox')) grid.innerHTML = EMPTY;
+      if (failure) grid.replaceChildren();
+      else if (!grid.querySelector('.emptybox')) grid.innerHTML = EMPTY;
       return;
     }
     if (grid.querySelector('.emptybox')) grid.innerHTML = '';

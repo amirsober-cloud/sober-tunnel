@@ -94,7 +94,11 @@ func (f portForwarder) listen(localAddr, remoteAddr string) {
 	f.listeners.hold()
 	defer f.listeners.release()
 
-	listener, err := net.Listen("tcp", localAddr)
+	if f.ctx.Err() != nil {
+		return
+	}
+	var lc net.ListenConfig
+	listener, err := lc.Listen(f.ctx, "tcp", localAddr)
 	if err != nil {
 		// Not fatal: one port being taken must not stop the others.
 		f.log.Error(bindFailure("forwarded port", localAddr, err))

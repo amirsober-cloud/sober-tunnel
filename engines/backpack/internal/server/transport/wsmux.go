@@ -135,6 +135,9 @@ func (s *WsMuxTransport) Start() {
 // nothing in here reaches back for a field that the next Restart is entitled to
 // replace while this run is still using it.
 func (s *WsMuxTransport) start(g *wsMuxGen) {
+	if g.ctx.Err() != nil {
+		return
+	}
 	go sweepTunnelConns(g.ctx, g.tunnelChannel)
 	// for  webui
 	if s.config.WebPort > 0 {
@@ -143,8 +146,8 @@ func (s *WsMuxTransport) start(g *wsMuxGen) {
 
 	s.status.set(fmt.Sprintf("Disconnected (%s)", s.config.Mode))
 
+	s.listeners.hold()
 	go s.tunnelListener(g)
-
 }
 
 func (s *WsMuxTransport) Restart() {
@@ -155,7 +158,7 @@ func (s *WsMuxTransport) Restart() {
 		atomic.StoreInt32(&s.streamCounter, 0)
 		atomic.StoreInt32(&s.sessionCounter, 0)
 		s.counterMutex.Unlock()
-		go s.start(s.newGen(ctx))
+		s.start(s.newGen(ctx))
 	})
 }
 
@@ -217,9 +220,6 @@ func (s *WsMuxTransport) vacate(g *wsMuxGen) {
 }
 
 func (s *WsMuxTransport) tunnelListener(g *wsMuxGen) {
-	// Counted while this goroutine holds a listener, so Start can wait for the
-	// port rather than sleeping and hoping. See listeners.go.
-	s.listeners.hold()
 	defer s.listeners.release()
 
 	addr := s.config.BindAddr
@@ -265,6 +265,13 @@ func (s *WsMuxTransport) tunnelListener(g *wsMuxGen) {
 			}
 
 			if r.URL.Path == "/channel" {
+				stop := context.AfterFunc(g.ctx, func() { conn.Close() })
+				defer func() {
+					stop()
+					if g.ctx.Err() != nil {
+						conn.Close()
+					}
+				}()
 				if !s.peerAuth().confirm(conn, adm.session) {
 					return
 				}
@@ -282,17 +289,23 @@ func (s *WsMuxTransport) tunnelListener(g *wsMuxGen) {
 				g.serving.Do(func() { s.serveGeneration(s.forwarder(g), func() { s.handleLoop(g) }) })
 
 			} else if strings.HasPrefix(r.URL.Path, "/tunnel") {
-				session, err := smux.Client(conn.NetConn(), s.smuxConfig)
+				wire := &wsMuxConn{
+					Conn: conn.NetConn(),
+					stop: context.AfterFunc(g.ctx, func() { conn.Close() }),
+				}
+				session, err := smux.Client(wire, s.smuxConfig)
 				if err != nil {
 					s.logger.Errorf("failed to create MUX session for connection %s: %v", conn.RemoteAddr().String(), err)
-					conn.Close()
+					wire.Close()
 					return
 				}
 				select {
 				case g.tunnelChannel <- session: // ok
+				case <-g.ctx.Done():
+					session.Close()
 				default:
 					s.logger.Warnf("forwarded port: the queue is full, dropping a client from %s", conn.RemoteAddr().String())
-					conn.Close()
+					session.Close()
 				}
 			}
 		}),
@@ -312,24 +325,11 @@ func (s *WsMuxTransport) tunnelListener(g *wsMuxGen) {
 	}
 	defer ln.Close()
 
-	if s.config.Mode == config.WSMUX {
-		go func() {
-			s.logger.Infof("%s server starting, listening on %s", s.config.Mode, addr)
-			if !s.controlChannel.IsSet() {
-				s.logger.Infof("waiting for %s control channel connection", s.config.Mode)
-			}
-			// The bind already succeeded, so this is the HTTP server itself
-			// stopping. Ending the run is right; ending the process is not.
-			if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-				s.logger.Errorf("%s server on %s stopped: %v", s.config.Mode, addr, err)
-			}
-		}()
-	} else {
+	if s.config.Mode != config.WSMUX {
 		// Built up front so a certificate problem fails at startup rather than
 		// per-handshake on a listener that is already accepting.
 		tlsCfg, err := network.ServerTLSConfig(s.tlsSettings(), s.logger.Warnf)
 		if err != nil {
-			ln.Close()
 			// Reported and stopped, not fatal. See the same passage in ws.go.
 			s.logger.Errorf("%s on %s cannot start: its TLS certificate could not be "+
 				"set up: %v", s.config.Mode, addr, err)
@@ -337,33 +337,37 @@ func (s *WsMuxTransport) tunnelListener(g *wsMuxGen) {
 		}
 		server.TLSConfig = tlsCfg
 
-		go func() {
-			s.logger.Infof("%s server starting, listening on %s", s.config.Mode, addr)
-			if !s.controlChannel.IsSet() {
-				s.logger.Infof("waiting for %s control channel connection", s.config.Mode)
-			}
-			// Empty paths: the certificate comes from TLSConfig.GetCertificate,
-			// so renewal needs no restart.
-			if err := server.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {
-				s.logger.Errorf("%s server on %s stopped: %v", s.config.Mode, addr, err)
-			}
-		}()
 	}
 
-	<-g.ctx.Done()
-
-	// close connection
-	if s.controlChannel.IsSet() {
-		s.controlChannel.Close()
+	// Close pending HTTP and TLS connections when the generation is canceled.
+	// The listener goroutine owns Serve and releases its slot only on return.
+	stop := context.AfterFunc(g.ctx, func() { server.Close() })
+	defer stop()
+	defer server.Close()
+	defer s.controlChannel.Close()
+	s.logger.Infof("%s server starting, listening on %s", s.config.Mode, addr)
+	var err error
+	if s.config.Mode == config.WSMUX {
+		err = server.Serve(ln)
+	} else {
+		// GetCertificate supplies the certificate, so renewal needs no restart.
+		err = server.ServeTLS(ln, "", "")
 	}
-
-	// This generation has ended. Close pending HTTP/TLS setup sockets as
-	// well as the listener; graceful shutdown can wait indefinitely on a
-	// slow request, delaying restart even though its tunnel is already gone.
-	s.logger.Infof("shutting down the websocket server on %s", addr)
-	if err := server.Close(); err != nil {
-		s.logger.Errorf("failed to close the websocket listener: %v", err)
+	if err != nil && err != http.ErrServerClosed {
+		s.logger.Errorf("%s server on %s stopped: %v", s.config.Mode, addr, err)
 	}
+}
+
+// net/http does not close hijacked sockets. Keep them bound to the generation
+// until smux closes the connection itself.
+type wsMuxConn struct {
+	net.Conn
+	stop func() bool
+}
+
+func (c *wsMuxConn) Close() error {
+	c.stop()
+	return c.Conn.Close()
 }
 
 func (s *WsMuxTransport) handleLoop(g *wsMuxGen) {

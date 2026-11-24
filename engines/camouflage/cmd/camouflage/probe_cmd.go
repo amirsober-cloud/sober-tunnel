@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/config"
 	"github.com/amirsober-cloud/sober-tunnel/engines/camouflage/internal/ingress"
@@ -15,7 +16,11 @@ import (
 func cmdProbe(args []string) {
 	fs := flag.NewFlagSet("probe", flag.ExitOnError)
 	nodeAlias := fs.String("node", "", "node alias (default: all nodes)")
+	samples := fs.Int("samples", 1, "independent connection attempts per endpoint (1-5)")
 	_ = fs.Parse(args)
+	if *samples < 1 || *samples > 5 {
+		fail("samples must be between 1 and 5")
+	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -45,6 +50,12 @@ func cmdProbe(args []string) {
 	for _, n := range nodes {
 		fmt.Printf("\nNode %q (%d endpoints):\n", n.Alias, len(n.Endpoints))
 		for _, ep := range n.Endpoints {
+			if *samples > 1 {
+				if !probeSamples(ep, n.AuthToken, *samples) {
+					anyFail = true
+				}
+				continue
+			}
 			rtt, err := ingress.ProbeEndpoint(ep, n.AuthToken)
 			if err != nil {
 				anyFail = true
@@ -56,6 +67,26 @@ func cmdProbe(args []string) {
 	}
 	if anyFail {
 		// Non-zero exit so scripts/CI can detect a degraded path.
-		fail("one or more endpoints are unreachable")
+		fail("one or more endpoint probes failed")
 	}
+}
+
+func probeSamples(ep config.Endpoint, token string, samples int) bool {
+	var total time.Duration
+	var successes int
+	for attempt := 1; attempt <= samples; attempt++ {
+		rtt, err := ingress.ProbeEndpoint(ep, token)
+		if err != nil {
+			color.Red("  %-6s %-24s attempt %d/%d: %v", ep.Mimic, ep.Target, attempt, samples, err)
+			continue
+		}
+		total += rtt
+		successes++
+	}
+	fmt.Printf("  %-6s %-24s %d/%d attempts succeeded", ep.Mimic, ep.Target, successes, samples)
+	if successes > 0 {
+		fmt.Printf(" (mean mux RTT %.1f ms)", float64(total)/float64(time.Millisecond)/float64(successes))
+	}
+	fmt.Println()
+	return successes == samples
 }

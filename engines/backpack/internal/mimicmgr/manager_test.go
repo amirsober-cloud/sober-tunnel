@@ -103,6 +103,37 @@ func TestActiveInstanceCannotBeEdited(t *testing.T) {
 	}
 }
 
+func TestRollbackReloadFailureReportsBothErrors(t *testing.T) {
+	m := testManager(t)
+	ctx := context.Background()
+	old := []byte(`{"role":"foreign"}`)
+	if err := m.Save(ctx, "exit", old); err != nil {
+		t.Fatal(err)
+	}
+	applyErr := errors.New("apply reload failed")
+	rollbackErr := errors.New("restore reload failed")
+	previous := m.Run
+	reloads := 0
+	m.Run = func(ctx context.Context, bin string, args ...string) ([]byte, error) {
+		if bin == "systemctl" && args[0] == "daemon-reload" {
+			reloads++
+			if reloads == 1 {
+				return nil, applyErr
+			}
+			return nil, rollbackErr
+		}
+		return previous(ctx, bin, args...)
+	}
+	err := m.Save(ctx, "exit", []byte(`{"role":"iran"}`))
+	if !errors.Is(err, applyErr) || !errors.Is(err, rollbackErr) {
+		t.Fatalf("expected both reload errors, got %v", err)
+	}
+	got, err := m.Read("exit")
+	if err != nil || string(got) != string(old) {
+		t.Fatalf("previous configuration was not restored: %v", err)
+	}
+}
+
 func TestLifecycleUsesOnlySelectedUnit(t *testing.T) {
 	m := testManager(t)
 	ctx := context.Background()

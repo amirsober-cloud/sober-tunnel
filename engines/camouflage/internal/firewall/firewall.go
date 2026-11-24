@@ -11,6 +11,7 @@
 package firewall
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -26,35 +27,39 @@ func EnsurePortOpen(port int) (string, error) {
 		return "ufw", runQuiet("ufw", "allow", fmt.Sprintf("%d/tcp", port))
 
 	case firewalldActive():
-		// Persist across reloads and apply to the running set.
-		_ = runQuiet("firewall-cmd", "--permanent", fmt.Sprintf("--add-port=%d/tcp", port))
-		errRuntime := runQuiet("firewall-cmd", fmt.Sprintf("--add-port=%d/tcp", port))
-		_ = runQuiet("firewall-cmd", "--reload")
-		return "firewalld", errRuntime
-
-	case iptablesRestrictive("iptables") || iptablesRestrictive("ip6tables"):
-		// Covers legacy iptables and the iptables-nft shim (so most nftables
-		// setups are handled here too). The daemon re-runs this on every start,
-		// which also re-adds the rule after a reboot without needing persistence.
-		// Open both IPv4 (iptables) and IPv6 (ip6tables) so a dual-stack node's
-		// v6 listener is not silently blocked.
-		var failures []string
-		for _, bin := range []string{"iptables", "ip6tables"} {
-			if !iptablesRestrictive(bin) {
-				continue
-			}
-			if err := ensureIptablesAccept(bin, port); err != nil {
-				failures = append(failures, err.Error())
-			}
-		}
-		if len(failures) > 0 {
-			return "iptables", fmt.Errorf("%s", strings.Join(failures, "; "))
-		}
-		return "iptables", nil
+		// Apply to both stores directly so other services' runtime rules
+		// survive opening this port.
+		arg := fmt.Sprintf("--add-port=%d/tcp", port)
+		errPermanent := runQuiet("firewall-cmd", "--permanent", arg)
+		errRuntime := runQuiet("firewall-cmd", arg)
+		return "firewalld", errors.Join(errPermanent, errRuntime)
 
 	default:
-		return "none", nil
+		return ensureIptablesPortOpen(port)
 	}
+}
+
+func ensureIptablesPortOpen(port int) (string, error) {
+	// Try both families independently. A failed read cannot establish that
+	// the host has no restrictive firewall.
+	backend := "none"
+	var failures []error
+	for _, bin := range []string{"iptables", "ip6tables"} {
+		restrictive, err := iptablesRestrictive(bin)
+		if err != nil {
+			failures = append(failures, err)
+		}
+		if restrictive {
+			backend = "iptables"
+			if err := ensureIptablesAccept(bin, port); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return "iptables", errors.Join(failures...)
+	}
+	return backend, nil
 }
 
 func ufwActive() bool {
@@ -81,15 +86,15 @@ func firewalldActive() bool {
 // ip6tables for IPv6) is present and its INPUT chain would drop unsolicited
 // traffic (default policy DROP/REJECT), i.e. a new port actually needs an
 // explicit ACCEPT rule.
-func iptablesRestrictive(bin string) bool {
+func iptablesRestrictive(bin string) (bool, error) {
 	if !hasCmd(bin) {
-		return false
+		return false, nil
 	}
-	out, err := exec.Command(bin, "-S", "INPUT").CombinedOutput()
+	out, err := exec.Command(bin, "-w", "5", "-S", "INPUT").CombinedOutput()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("%s INPUT inspection: %w: %s", bin, err, strings.TrimSpace(string(out)))
 	}
-	return parseInputRestrictive(string(out))
+	return parseInputRestrictive(string(out)), nil
 }
 
 // parseInputRestrictive inspects `iptables -S INPUT` output for a restrictive
@@ -109,10 +114,16 @@ func parseInputRestrictive(rules string) bool {
 // idempotency).
 func ensureIptablesAccept(bin string, port int) error {
 	rule := []string{"INPUT", "-p", "tcp", "--dport", strconv.Itoa(port), "-j", "ACCEPT"}
-	if exec.Command(bin, append([]string{"-C"}, rule...)...).Run() == nil {
+	check := append([]string{"-w", "5", "-C"}, rule...)
+	if err := exec.Command(bin, check...).Run(); err == nil {
 		return nil // already allowed
+	} else {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+			return fmt.Errorf("%s %s: %w", bin, strings.Join(check, " "), err)
+		}
 	}
-	return runQuiet(bin, append([]string{"-I"}, rule...)...)
+	return runQuiet(bin, append([]string{"-w", "5", "-I"}, rule...)...)
 }
 
 func hasCmd(name string) bool {

@@ -2,9 +2,11 @@ package tunnelspec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,49 +18,85 @@ import (
 )
 
 // Apply writes a changed tunnel config, restarts the service and verifies
-// it actually came back up. If it does not, the previous config is put back and
-// the tunnel restarted with it, so a bad edit (a port already in use, a wrong
-// address) can never leave the user with a dead tunnel and a lost config.
+// it actually came back up. If it does not, Apply attempts to restore the
+// previous configuration and service state.
 func Apply(s Spec) error {
 	// Helper refusals happen before any mutation; do not enter rollback and
 	// replace the current file for an edit that was never written.
 	if err := s.validateHelpers(); err != nil {
 		return err
 	}
-	path := configPath(s.Name)
-	service := app.ServiceName(s.Name)
+	return applyWithUnit(s.Name, []byte(s.Render()), func() error {
+		_, err := s.installService()
+		return err
+	})
+}
+
+// ApplyBodyWithUnit applies a rendered config and refreshes its service unit.
+func ApplyBodyWithUnit(name, body string) error {
+	return applyWithUnit(name, []byte(body), func() error {
+		if err := core.WriteUnit(name); err != nil {
+			return err
+		}
+		return core.DaemonReload()
+	})
+}
+
+func applyWithUnit(name string, body []byte, installUnit func() error) error {
+	if err := validateConfigBody(body); err != nil {
+		return err
+	}
+	path := configPath(name)
+	service := app.ServiceName(name)
 
 	prev, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("could not read the current config: %w", err)
 	}
 	wasActive := core.IsActive(service)
+	unitPath := filepath.Join(app.ServiceDir, service)
+	prevUnit, unitErr := os.ReadFile(unitPath)
+	if unitErr != nil && !os.IsNotExist(unitErr) {
+		return fmt.Errorf("could not read the current unit: %w", unitErr)
+	}
+	restoreUnit := func() error {
+		if unitErr == nil {
+			if err := app.WriteFileAtomic(unitPath, prevUnit, 0644); err != nil {
+				return fmt.Errorf("restore previous unit: %w", err)
+			}
+		}
+		// An absent unit had no service to restore. Disable before removing
+		// the new unit so systemd can remove any enablement links it created.
+		if os.IsNotExist(unitErr) {
+			if _, err := os.Stat(unitPath); os.IsNotExist(err) {
+				return nil
+			}
+			_, disableErr := core.Systemctl("disable", "--now", service)
+			return errors.Join(disableErr, os.Remove(unitPath), core.DaemonReload())
+		}
+		return core.DaemonReload()
+	}
 
-	if _, err := s.Save(); err != nil {
-		// Save failed — put the original file back untouched.
-		_ = app.WriteFileAtomic(path, prev, app.TunnelConfigMode)
+	if err := app.WriteFileAtomic(path, body, app.TunnelConfigMode); err != nil {
 		return err
+	}
+	if err := installUnit(); err != nil {
+		return revertAfter(err, path, prev, service, wasActive, restoreUnit)
 	}
 	// Save alone won't reload an already-running unit — restart explicitly.
 	if err := core.RestartService(service); err != nil {
-		Revert(path, prev, service, wasActive)
-		return fmt.Errorf("the tunnel failed to restart with the new settings — reverted: %w", err)
+		return revertAfter(fmt.Errorf("the tunnel failed to restart with the new settings: %w", err), path, prev, service, wasActive, restoreUnit)
 	}
 
 	// The unit can report "activating" for a moment; give it a chance, then
 	// confirm it is really running.
-	if !waitTunnelActive(s.Name, []byte(s.Render())) {
-		detail := LastLogLine(service)
-		Revert(path, prev, service, wasActive)
-		if detail != "" {
-			return fmt.Errorf("the tunnel did not come up with the new settings — reverted. Reason: %s", detail)
-		}
-		return fmt.Errorf("the tunnel did not come up with the new settings — reverted to the previous config")
+	if !waitTunnelActive(name, body) {
+		return revertAfter(startupFailure(service), path, prev, service, wasActive, restoreUnit)
 	}
 	// Filed only now. A change that was reverted above replaced nothing, and
 	// recording it would put the configuration that is still running into the
 	// list of ones to go back to. See confhist.go.
-	RecordChange(s.Name, prev, "")
+	RecordChange(name, prev, "")
 	return nil
 }
 
@@ -73,6 +111,9 @@ func Apply(s Spec) error {
 func ApplyBody(name, body, note string) error { return applyRaw(name, []byte(body), note) }
 
 func applyRaw(name string, cfg []byte, note string) error {
+	if err := validateConfigBody(cfg); err != nil {
+		return err
+	}
 	path := configPath(name)
 	service := app.ServiceName(name)
 
@@ -83,23 +124,41 @@ func applyRaw(name string, cfg []byte, note string) error {
 	wasActive := core.IsActive(service)
 
 	if err := app.WriteFileAtomic(path, cfg, app.TunnelConfigMode); err != nil {
-		_ = app.WriteFileAtomic(path, prev, app.TunnelConfigMode)
 		return err
 	}
 	if err := core.RestartService(service); err != nil {
-		Revert(path, prev, service, wasActive)
-		return fmt.Errorf("the tunnel failed to restart on that configuration — reverted: %w", err)
+		return revertAfter(fmt.Errorf("the tunnel failed to restart on that configuration: %w", err), path, prev, service, wasActive, nil)
 	}
 	if !waitTunnelActive(name, cfg) {
-		detail := LastLogLine(service)
-		Revert(path, prev, service, wasActive)
-		if detail != "" {
-			return fmt.Errorf("the tunnel did not come up on that configuration — reverted. Reason: %s", detail)
-		}
-		return fmt.Errorf("the tunnel did not come up on that configuration — reverted")
+		return revertAfter(startupFailure(service), path, prev, service, wasActive, nil)
 	}
 	RecordChange(name, prev, note)
 	return nil
+}
+
+func validateConfigBody(body []byte) error {
+	var cfg config.Config
+	if _, err := toml.Decode(string(body), &cfg); err != nil {
+		return fmt.Errorf("invalid tunnel configuration: %w", err)
+	}
+	if cfg.Server.BindAddr == "" && cfg.Client.RemoteAddr == "" && !cfg.L3.Enabled() && !cfg.Direct.Present() {
+		return errors.New("configuration describes no tunnel")
+	}
+	return nil
+}
+
+func startupFailure(service string) error {
+	if detail := LastLogLine(service); detail != "" {
+		return fmt.Errorf("the tunnel did not come up with the new settings: %s", detail)
+	}
+	return errors.New("the tunnel did not come up with the new settings")
+}
+
+func revertAfter(cause error, path string, prev []byte, service string, wasActive bool, restoreUnit func() error) error {
+	if err := revert(path, prev, service, wasActive, restoreUnit); err != nil {
+		return errors.Join(cause, fmt.Errorf("rollback failed: %w", err))
+	}
+	return fmt.Errorf("%w (previous configuration restored)", cause)
 }
 
 // Type=simple becomes active before the engine starts its helper. Managed
@@ -144,15 +203,24 @@ func waitHelperReady(ctx context.Context, name string) bool {
 	return false
 }
 
-// Revert restores a previous config file and brings the service back to the
-// state it was in before the edit.
-func Revert(path string, prev []byte, service string, wasActive bool) {
-	_ = app.WriteFileAtomic(path, prev, app.TunnelConfigMode)
-	if wasActive {
-		_ = core.RestartService(service)
-	} else {
-		_ = core.StopService(service)
+func revert(path string, prev []byte, service string, wasActive bool, restoreUnit func() error) error {
+	if err := app.WriteFileAtomic(path, prev, app.TunnelConfigMode); err != nil {
+		return fmt.Errorf("restore previous configuration: %w", err)
 	}
+	if restoreUnit != nil {
+		if err := restoreUnit(); err != nil {
+			return err
+		}
+	}
+	if wasActive {
+		return core.RestartService(service)
+	}
+	if restoreUnit != nil {
+		if _, err := os.Stat(filepath.Join(app.ServiceDir, service)); os.IsNotExist(err) {
+			return nil
+		}
+	}
+	return core.StopService(service)
 }
 
 // LastLogLine returns the most recent meaningful journal line for a service,

@@ -293,6 +293,12 @@
                       "type":  "string",
                       "default":  "",
                       "help":  "node alias (default: all nodes)"
+                  },
+                  {
+                      "name":  "samples",
+                      "type":  "int",
+                      "default":  "1",
+                      "help":  "independent connection attempts per endpoint (1-5)"
                   }
               ],
     "setup-foreign":  [

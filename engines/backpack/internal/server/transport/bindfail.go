@@ -132,15 +132,16 @@ func (b *listenBackoff) wait(ctx context.Context) bool {
 // why a taken tunnel port is waited for rather than skipped or fatal.
 func bindTunnelPort[T any](ctx context.Context, log *logrus.Logger, addr string, bind func() (T, error)) (T, bool) {
 	var backoff listenBackoff
-	for {
+	var zero T
+	for ctx.Err() == nil {
 		l, err := bind()
 		if err == nil {
 			return l, true
 		}
 		log.Error(bindFailure("tunnel port", addr, err))
 		if !backoff.wait(ctx) {
-			var zero T
 			return zero, false
 		}
 	}
+	return zero, false
 }

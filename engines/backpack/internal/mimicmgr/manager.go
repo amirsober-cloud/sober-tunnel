@@ -178,29 +178,20 @@ func (m *Manager) Save(ctx context.Context, name string, data json.RawMessage) e
 	if unitErr != nil && !os.IsNotExist(unitErr) {
 		return unitErr
 	}
-	restore := func() {
-		if cfgErr == nil {
-			_ = atomicWrite(m.configPath(name), oldConfig, 0600)
-		} else {
-			_ = os.Remove(m.configPath(name))
-		}
-		if unitErr == nil {
-			_ = atomicWrite(unitPath, oldUnit, 0644)
-		} else {
-			_ = os.Remove(unitPath)
-		}
-		_, _ = m.command(context.Background(), "systemctl", "daemon-reload")
-	}
 	if err := atomicWrite(m.configPath(name), data, 0600); err != nil {
 		return err
 	}
 	if err := atomicWrite(unitPath, []byte(m.UnitFor(name)), 0644); err != nil {
-		restore()
-		return err
+		return errors.Join(err, restoreFile(m.configPath(name), oldConfig, cfgErr, 0600))
 	}
 	if _, err := m.command(ctx, "systemctl", "daemon-reload"); err != nil {
-		restore()
-		return fmt.Errorf("systemd reload failed: %w", err)
+		configRestore := restoreFile(m.configPath(name), oldConfig, cfgErr, 0600)
+		unitRestore := restoreFile(unitPath, oldUnit, unitErr, 0644)
+		_, reloadErr := m.command(context.Background(), "systemctl", "daemon-reload")
+		if reloadErr != nil {
+			reloadErr = fmt.Errorf("rollback systemd reload failed: %w", reloadErr)
+		}
+		return errors.Join(fmt.Errorf("systemd reload failed: %w", err), configRestore, unitRestore, reloadErr)
 	}
 	if os.IsNotExist(cfgErr) {
 		// Start only newly created instances. Editing a deliberately stopped
@@ -208,6 +199,22 @@ func (m *Manager) Save(ctx context.Context, name string, data json.RawMessage) e
 		if _, err := m.command(ctx, "systemctl", "enable", "--now", m.unit(name)); err != nil {
 			return fmt.Errorf("configuration saved, but automatic start failed; use Start or Logs for this instance: %w", err)
 		}
+	}
+	return nil
+}
+
+func restoreFile(path string, data []byte, readErr error, mode os.FileMode) error {
+	var err error
+	if readErr == nil {
+		err = atomicWrite(path, data, mode)
+	} else {
+		err = os.Remove(path)
+		if os.IsNotExist(err) {
+			return nil
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("rollback of %s failed: %w", filepath.Base(path), err)
 	}
 	return nil
 }

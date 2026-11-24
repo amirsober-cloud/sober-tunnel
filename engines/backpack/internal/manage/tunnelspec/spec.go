@@ -496,6 +496,10 @@ func (s Spec) Save() (string, error) {
 	if err := app.WriteFileAtomic(configPath(s.Name), []byte(s.Render()), app.TunnelConfigMode); err != nil {
 		return "", err
 	}
+	return s.installService()
+}
+
+func (s Spec) installService() (string, error) {
 	if err := core.WriteUnit(s.Name); err != nil {
 		return "", err
 	}

@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/backpack/backpack/config"
@@ -328,37 +327,9 @@ func ApplyDirectTunnel(n NewDirectTunnel) (service string, active bool, created 
 		return service, IsActive(service), true, nil
 	}
 
-	// Replacing a running tunnel, so the same protection an edit gets on this
-	// machine applies: keep the old file, and put it back if the new one does
-	// not come up. On a node this is the difference between a bad push being an
-	// error message and a bad push being a server that has to be fixed by hand.
-	prev, err := os.ReadFile(path)
-	if err != nil {
-		return service, false, false, fmt.Errorf("could not read the current config: %w", err)
-	}
-	wasActive := IsActive(service)
-
-	if err := writeDirectConfig(name, body); err != nil {
-		_ = app.WriteFileAtomic(path, prev, app.TunnelConfigMode)
-		return service, IsActive(service), false, err
-	}
-	if err := RestartService(service); err != nil {
-		revertSpec(path, prev, service, wasActive)
-		return service, IsActive(service), false,
-			fmt.Errorf("the tunnel failed to restart with the new settings — reverted: %w", err)
-	}
-	if !WaitServiceActive(service, 10*time.Second) {
-		detail := lastLogLine(service)
-		revertSpec(path, prev, service, wasActive)
-		if detail != "" {
-			return service, IsActive(service), false,
-				fmt.Errorf("the tunnel did not come up with the new settings — reverted. Reason: %s", detail)
-		}
-		return service, IsActive(service), false,
-			fmt.Errorf("the tunnel did not come up with the new settings — reverted to the previous config")
-	}
-	recordConfigChange(name, prev, "")
-	return service, IsActive(service), false, nil
+	optimize.ApplyQuiet(ReservedPorts())
+	err = tunnelspec.ApplyBodyWithUnit(name, body)
+	return service, IsActive(service), false, err
 }
 
 // directBody turns a filled form into the name and the config text it

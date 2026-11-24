@@ -200,6 +200,9 @@ func serviceDown(dir, name string) *ServiceDownDetail {
 		return nil // too old to describe now
 	}
 	ls := snap.LocalService
+	if !ls.Recent(time.Now()) {
+		return nil
+	}
 	return &ServiceDownDetail{
 		Addr: ls.Addr, Why: ls.Why, Failures: ls.Failures, Since: ls.Since,
 	}
@@ -210,13 +213,13 @@ func serviceDown(dir, name string) *ServiceDownDetail {
 // three are what separate "the service is down" from "one connection lost a
 // race during a restart".
 func serviceDownDetail(d *ServiceDownDetail) string {
-	what := "is not answering"
+	what := "unreachable"
 	switch d.Why {
 	case "refused":
-		what = "is not listening"
+		what = "connection refused"
 	case "timeout":
-		what = "is not answering — a firewall on that machine, or a wedged service"
+		what = "connection timed out"
 	}
-	return fmt.Sprintf("the tunnel is up, but %s on the far server %s: %d connection(s) refused since %s",
+	return fmt.Sprintf("the tunnel is up; destination %s (TCP): %s (%d failed attempts since %s)",
 		d.Addr, what, d.Failures, d.Since.Format("15:04"))
 }

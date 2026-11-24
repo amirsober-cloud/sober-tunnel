@@ -56,6 +56,8 @@ try {
   await evaluate("location.hash='/tunnels';true");
   await until("document.querySelector('#mimic-fleet .sb')");
   await until("document.querySelector('[data-name=browser-wss] [data-act=edit]') && document.querySelector('[data-name=browser-wss] [data-do=restart]')");
+  await evaluate("document.querySelector('[data-name=browser-wss] [data-act=more]').click();true");
+  await until("document.querySelector('[data-name=browser-wss] .card-more.on [data-do=restart]')");
   await evaluate("document.querySelector('[data-name=browser-wss] [data-act=edit]').click();true");
   await until("location.hash.endsWith('/browser-wss/edit') && document.querySelector('.dlg .ttl input[name=name]')?.value==='browser-wss'");
   await evaluate("location.hash='/tunnels';true");

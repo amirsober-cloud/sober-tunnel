@@ -285,4 +285,4 @@ them both ends have to agree on. This says what exists.
 
 ---
 
-*Generated from `config/` on 2026-11-21. Last verified against SoberLinkPack v0.4.4.*
+*Generated from `config/` on 2026-11-21. Last verified against SoberLinkPack v0.4.5.*

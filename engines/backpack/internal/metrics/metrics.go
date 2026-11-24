@@ -92,8 +92,21 @@ type LocalServiceState struct {
 	Why string `json:"why"`
 	// Failures is how many connections have died this way since the last one
 	// that worked, and Since is when the run started.
-	Failures uint64    `json:"failures"`
-	Since    time.Time `json:"since"`
+	Failures    uint64    `json:"failures"`
+	Since       time.Time `json:"since"`
+	LastFailure time.Time `json:"last_failure"`
+}
+
+const localServiceFailureWindow = 2 * time.Minute
+
+// Recent reports whether the destination has failed a dial recently. Older
+// engines have only the start of the run, which is the last known evidence.
+func (s *LocalServiceState) Recent(now time.Time) bool {
+	last := s.LastFailure
+	if last.IsZero() {
+		last = s.Since
+	}
+	return !last.IsZero() && now.Sub(last) <= localServiceFailureWindow
 }
 
 // PoolStats is the state of the client's connection pool.
@@ -155,10 +168,11 @@ var localService atomic.Pointer[LocalServiceState]
 // from "one refusal", and the difference is whether the operator is looking at
 // a service that is down or a client that tried once during a restart.
 func ReportLocalDialFailure(addr, why string) {
+	now := time.Now()
 	for {
 		old := localService.Load()
-		next := &LocalServiceState{Addr: addr, Why: why, Failures: 1, Since: time.Now()}
-		if old != nil && old.Addr == addr && old.Why == why {
+		next := &LocalServiceState{Addr: addr, Why: why, Failures: 1, Since: now, LastFailure: now}
+		if old != nil && old.Addr == addr && old.Why == why && old.Recent(now) {
 			next.Failures = old.Failures + 1
 			next.Since = old.Since
 		}

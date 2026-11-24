@@ -56,6 +56,26 @@ func TestRepeatedRefusalsAccumulate(t *testing.T) {
 	}
 }
 
+func TestOldDestinationFailureDoesNotKeepWarningActive(t *testing.T) {
+	t.Cleanup(ReportLocalDialSuccess)
+	now := time.Now()
+	stale := now.Add(-3 * time.Minute)
+	localService.Store(&LocalServiceState{Addr: "127.0.0.1:9443", Why: "refused", Failures: 5, Since: stale})
+	if SnapshotLocalService().Recent(now) {
+		t.Fatal("a freshly collected snapshot still treated a legacy failure as current")
+	}
+	ReportLocalDialFailure("127.0.0.1:9443", "refused")
+	state := SnapshotLocalService()
+	if state.Failures != 1 || !state.Recent(time.Now()) || state.LastFailure.IsZero() {
+		t.Fatal("the new failure did not start a fresh warning")
+	}
+	longRun := *state
+	longRun.Since = stale
+	if !longRun.Recent(time.Now()) {
+		t.Fatal("a recent failure in a long run was incorrectly hidden")
+	}
+}
+
 // A different address starts its own run, because it is a different fact.
 func TestADifferentAddressStartsItsOwnRun(t *testing.T) {
 	t.Cleanup(ReportLocalDialSuccess)

@@ -294,7 +294,7 @@ ${field(t, idx)}
   <button class="btn" type="button" data-do="restart" title="Restart tunnel" aria-label="Restart tunnel">${svg('restart', 'iA')}</button>
   <button class="btn" data-act="logs"   title="Logs">${BTN.logs}</button>
   <button class="btn" data-act="detail" title="Metrics">${BTN.chart}</button>
-  <button class="btn" data-act="more"   title="Start, stop, more actions">${BTN.more}</button>
+  <button class="btn" data-act="more"   title="Start, stop, restart, more actions">${BTN.more}</button>
 </div>
 
 ${st ? `<div class="permenu">
@@ -306,6 +306,7 @@ ${st ? `<div class="permenu">
 <div class="card-more">
   <button data-do="start"><span>${svg('play')}</span>Start</button>
   <button data-do="stop"><span>${svg('stop')}</span>Stop</button>
+  <button data-do="restart"><span>${svg('restart')}</span>Restart</button>
   <div class="sep2"></div>
   <!-- Offered only while the other end is unknown. Everything the fleet does
        for a tunnel is gated on knowing where that end lives, and a tunnel not
